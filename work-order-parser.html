@@ -1310,13 +1310,7 @@ We will visit the site to replace ${partDesc} on ${formattedDate}, at local stor
         function exportToCSV() {
             // Collect all data from form fields
             const partDesc = document.getElementById('partDesc').value || '';
-            const partCode = document.getElementById('partCode').value || '';
             const contactName = document.getElementById('contactName').value || '';
-            const contactPhone = document.getElementById('contactPhone').value || '';
-            const arrivalTime = document.getElementById('arrivalTime').value || '';
-            const dayOfWeek = document.getElementById('dayOfWeek').value || '';
-            const execDate = document.getElementById('execDate').value || '';
-            const diskSlot = document.getElementById('diskSlot').value || '';
 
             // Get data from extracted info (PARSE WORK ORDER results)
             const wotNumber = document.getElementById('dispWOT').textContent;
@@ -1328,12 +1322,12 @@ We will visit the site to replace ${partDesc} on ${formattedDate}, at local stor
             // name;ticket type;project;external reference;issuer;requestor;description;status;resolution;responsible;store number;Part 1 Number
             
             // 1. NAME: WOT# - WO# CTR#/INC# {Part Description}
-            const locationCode = woData.locationCode || 'CTR0000'; // Get location code from parsed data
+            const locationCode = woData.locationCode || 'CTR0000';
             const ticketName = `${wotNumber} - ${woNumber} ${locationCode}/${incNumber} ${partDesc}`;
             
             // 2. TICKET TYPE: Auto-detect from part description
-            let ticketType = 'Hard Drive'; // Default
-            const searchText = (partDesc + ' ' + partCode + ' ' + shortDesc).toLowerCase();
+            let ticketType = 'Hard Drive';
+            const searchText = (partDesc + ' ' + shortDesc).toLowerCase();
             
             if (searchText.includes('cmos') && searchText.includes('battery')) {
                 ticketType = 'CMOS Battery';
@@ -1373,26 +1367,24 @@ We will visit the site to replace ${partDesc} on ${formattedDate}, at local stor
             // 4. EXTERNAL REFERENCE: INC number only
             const externalRef = incNumber;
             
-            // 5. ISSUER: Use Contact Name from form
-            const issuer = contactName || 'Contact Name Required';
+            // 5. ISSUER: From parsed email TO field
+            const issuer = woData.issuer || contactName || '';
             
-            // 6. REQUESTOR: Use Contact Name from form
-            const requestor = contactName || 'Contact Name Required';
+            // 6. REQUESTOR: Fixed value (from original ProjeQtor export)
+            const requestor = 'Mihai Posea';
             
-            // 7. DESCRIPTION: First line from dispatch email (the part problem statement)
-            // Format: "Physical hard disk 0:0:5 is predicted to fail - disk will have to be replaced"
-            // Extract from shortDesc - take the first sentence/key phrase
+            // 7. DESCRIPTION: Only the short description (problem statement)
             const description = shortDesc || '';
             
-            // 8-10. STATUS, RESOLUTION, RESPONSIBLE: Empty (No information needed)
+            // 8-10. STATUS, RESOLUTION, RESPONSIBLE: Empty
             const status = '';
             const resolution = '';
             const responsible = '';
             
-            // 11. STORE NUMBER: Use CTR code from location
-            const storeNumber = locationCode || woData.locationCode || '';
+            // 11. STORE NUMBER: Empty
+            const storeNumber = '';
             
-            // 12. PART 1 NUMBER: Leave empty (No information needed)
+            // 12. PART 1 NUMBER: Empty
             const partNumber = '';
             
             // Build CSV line (ProjeQtor format) - escape fields properly
