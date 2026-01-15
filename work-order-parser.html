@@ -653,7 +653,9 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
             location: '',
             locationCode: '',
             shortDesc: '',
-            address: ''
+            address: '',
+            issuer: '',
+            requestor: ''
         };
 
         // Initialize parts table on load
@@ -758,6 +760,30 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
             woData.woNumber = extractField(text, /WO\d+/i) || '';
             woData.wotNumber = extractField(text, /WOT\d+/i) || '';
             woData.incNumber = extractField(text, /INC\d+/i) || '';
+            
+            // Extract issuer (from "From:" field or ticket creator) - look for first person mentioned in To: line
+            const toMatch = text.match(/^To:\s*([^\n]+(?:\n\s+[^\n]+)*)/im);
+            if (toMatch) {
+                const toField = toMatch[1];
+                // Extract first person's name (email format: Name Name <email>)
+                const nameMatch = toField.match(/([A-Za-z\s]+)\s*</);
+                if (nameMatch) {
+                    woData.issuer = nameMatch[1].trim();
+                }
+            }
+            
+            // Extract requestor (look for contact info at bottom or in email body)
+            const contactMatch = text.match(/^([A-Za-z]+)\s+(\d{3}-\d{3}-\d{4})/m);
+            if (contactMatch) {
+                woData.requestor = contactMatch[1];
+            } else {
+                // Fallback: try From field
+                const fromMatch = text.match(/^From:\s*([A-Za-z\s]+)\s*</im);
+                if (fromMatch) {
+                    woData.requestor = fromMatch[1].trim();
+                }
+            }
+            
             // Extract location code
             woData.locationCode = extractField(text, /Location:\s*\n?\s*(CTR\d+)/i) || '';
             
@@ -1292,11 +1318,15 @@ We will visit the site to replace ${partDesc} on ${formattedDate}, at local stor
             const location = document.getElementById('dispLoc').textContent;
             const shortDesc = document.getElementById('dispDesc').textContent;
             
+            // Use parsed issuer and requestor from woData
+            const issuer = woData.issuer || 'BFG';
+            const requestor = woData.requestor || 'Mihai Posea';
+            
             // ProjeQtor CSV Format (semicolon-delimited):
             // name;ticket type;project;external reference;issuer;requestor;description;status;resolution;responsible;store number;Part 1 Number
             
             const fullPart = partDesc ? `${partDesc}${partCode ? ' - ' + partCode : ''}` : partCode;
-            const ticketName = `${wotNumber} - ${woNumber} ${incNumber ? incNumber + ' ' : ''}${shortDesc}`;
+            const ticketName = `${wotNumber} - ${woNumber} ${location}/${incNumber} ${shortDesc}`;
             const ticketType = 'Hard Drive'; // Can be made dynamic based on part type if needed
             const project = 'CTC Servers Support';
             const description = `${shortDesc}. Disk slot: ${diskSlot}. Scheduled for: ${dayOfWeek}, ${execDate} at ${arrivalTime}. Tech contact: ${contactName} ${contactPhone}`;
@@ -1308,8 +1338,8 @@ We will visit the site to replace ${partDesc} on ${formattedDate}, at local stor
                 ticketType,
                 project,
                 incNumber,
-                'BFG', // issuer
-                'Mihai Posea', // requestor (can be customized)
+                issuer, // Use parsed issuer
+                requestor, // Use parsed requestor
                 description,
                 '', // status (empty)
                 '', // resolution (empty)
@@ -1385,7 +1415,7 @@ We will visit the site to replace ${partDesc} on ${formattedDate}, at local stor
             document.getElementById('output4').textContent = 'Generate outputs to see content...';
             document.getElementById('output5').textContent = 'Generate outputs to see content...';
 
-            woData = { woNumber: '', wotNumber: '', incNumber: '', location: '', locationCode: '', shortDesc: '', address: '' };
+            woData = { woNumber: '', wotNumber: '', incNumber: '', location: '', locationCode: '', shortDesc: '', address: '', issuer: '', requestor: '' };
         }
 
         // Set default day on load
