@@ -1312,6 +1312,7 @@ We will visit the site to replace ${partDesc} on ${formattedDate}, at local stor
         function exportToCSV() {
             // Collect all data from form fields
             const partDesc = document.getElementById('partDesc').value || '';
+            const partCode = document.getElementById('partCode').value || '';
             const contactName = document.getElementById('contactName').value || '';
 
             // Get data from extracted info (PARSE WORK ORDER results)
@@ -1403,8 +1404,8 @@ We will visit the site to replace ${partDesc} on ${formattedDate}, at local stor
             // 11. STORE NUMBER: Use CTR code from parsed location
             const storeNumber = cleanField(locationCode || '');
             
-            // 12. PART 1 NUMBER: Empty
-            const partNumber = '';
+            // 12. PART 1 NUMBER: Use Part Code from form (clean commas)
+            const partNumber = cleanField(partCode || '');
             
             // Build CSV line (comma-separated format) - NO escaping needed since we removed commas
             const csvLine = [
