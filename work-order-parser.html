@@ -618,6 +618,15 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
                 </div>
                 <div class="output-box" id="output5">Generate outputs to see content...</div>
             </div>
+
+            <!-- OUTPUT 6 - UPDATE SERVICE NOW WITH TECH STORE VISIT (CUSTOMER VISIBLE ONLY) -->
+            <div class="output-panel">
+                <div class="output-header">
+                    <h3>6. UPDATE SERVICE NOW WITH TECH STORE VISIT (CUSTOMER VISIBLE ONLY)</h3>
+                    <button class="btn btn-copy" onclick="copyOutput('output6')">COPY</button>
+                </div>
+                <div class="output-box" id="output6">Generate outputs to see content...</div>
+            </div>
         </div>
         </div>
     </div>
@@ -1285,12 +1294,16 @@ Special instructions for BFG Technician: Once onsite tech reaches the site, plea
 5. Added the following Performed Work Note (Customer visible) to the ticket
 We will visit the site to replace ${partDesc} on ${formattedDate}, at local store ${arrivalTime}.`;
 
+            // OUTPUT 6 - Update ServiceNow with Tech Store Visit (Customer Visible Only)
+            const output6 = `We will visit the site to replace ${partDesc} on ${formattedDate}, at local store ${arrivalTime}.`;
+
             // Set outputs
             document.getElementById('output1').textContent = output1;
             document.getElementById('output2').textContent = output2;
             document.getElementById('output3').textContent = output3;
             document.getElementById('output4').textContent = output4;
             document.getElementById('output5').textContent = output5;
+            document.getElementById('output6').textContent = output6;
         }
 
         function copyOutput(outputId) {
@@ -1484,6 +1497,7 @@ We will visit the site to replace ${partDesc} on ${formattedDate}, at local stor
             document.getElementById('output3').textContent = 'Generate outputs to see content...';
             document.getElementById('output4').textContent = 'Generate outputs to see content...';
             document.getElementById('output5').textContent = 'Generate outputs to see content...';
+            document.getElementById('output6').textContent = 'Generate outputs to see content...';
 
             woData = { woNumber: '', wotNumber: '', incNumber: '', location: '', locationCode: '', shortDesc: '', address: '', issuer: '', requestor: '', cleanLocation: '' };
         }
