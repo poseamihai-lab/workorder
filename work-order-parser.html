@@ -1318,12 +1318,25 @@ We will visit the site to replace ${partDesc} on ${formattedDate}, at local stor
             const incNumber = document.getElementById('dispINC').textContent;
             const shortDesc = document.getElementById('dispDesc').textContent;
             
-            // ProjeQtor CSV Format (semicolon-delimited):
-            // name;ticket type;project;external reference;issuer;requestor;description;status;resolution;responsible;store number;Part 1 Number
+            // ProjeQtor CSV Format (comma-separated):
+            // name,ticket type,project,external reference,issuer,requestor,description,status,resolution,responsible,store number,Part 1 Number
             
-            // 1. NAME: WOT# - WO# CTR#/INC# {Part Description}
+            // Helper function to clean field: remove commas, replace with space if needed
+            const cleanField = (text) => {
+                if (!text) return '';
+                return text.replace(/,/g, ' ').replace(/\s+/g, ' ').trim();
+            };
+            
+            // Helper function to get first part before comma
+            const getFirstPart = (text) => {
+                if (!text) return '';
+                return text.split(',')[0].trim();
+            };
+            
+            // 1. NAME: WOT# - WO# CTR#/INC# {Part Description (first part only)}
             const locationCode = woData.locationCode || 'CTR0000';
-            const ticketName = `${wotNumber} - ${woNumber} ${locationCode}/${incNumber} ${partDesc}`;
+            const partDescFirstPart = getFirstPart(partDesc); // Take only first part before comma
+            const ticketName = cleanField(`${wotNumber} - ${woNumber} ${locationCode}/${incNumber} ${partDescFirstPart}`);
             
             // 2. TICKET TYPE: Auto-detect from part description
             let ticketType = 'Hard Drive';
@@ -1367,14 +1380,14 @@ We will visit the site to replace ${partDesc} on ${formattedDate}, at local stor
             // 4. EXTERNAL REFERENCE: INC number only
             const externalRef = incNumber;
             
-            // 5. ISSUER: From parsed email TO field
-            const issuer = woData.issuer || contactName || '';
+            // 5. ISSUER: From parsed email TO field (clean commas)
+            const issuer = cleanField(woData.issuer || contactName || '');
             
-            // 6. REQUESTOR: Fixed value (from original ProjeQtor export)
-            const requestor = 'Mihai Posea';
+            // 6. REQUESTOR: Fixed value (clean commas)
+            const requestor = cleanField('Mihai Posea');
             
-            // 7. DESCRIPTION: Only the short description (problem statement)
-            const description = shortDesc || '';
+            // 7. DESCRIPTION: Only the short description (clean commas)
+            const description = cleanField(shortDesc || '');
             
             // 8-10. STATUS, RESOLUTION, RESPONSIBLE: Empty
             const status = '';
@@ -1387,7 +1400,7 @@ We will visit the site to replace ${partDesc} on ${formattedDate}, at local stor
             // 12. PART 1 NUMBER: Empty
             const partNumber = '';
             
-            // Build CSV line (comma-separated format for ProjeQtor) - escape fields properly
+            // Build CSV line (comma-separated format) - NO escaping needed since we removed commas
             const csvLine = [
                 ticketName,
                 ticketType,
@@ -1401,13 +1414,7 @@ We will visit the site to replace ${partDesc} on ${formattedDate}, at local stor
                 responsible,
                 storeNumber,
                 partNumber
-            ].map(field => {
-                // Escape special characters for CSV (comma-separated)
-                if (field && (field.includes(',') || field.includes('"') || field.includes('\n'))) {
-                    return '"' + field.replace(/"/g, '""') + '"';
-                }
-                return field;
-            }).join(',');
+            ].join(',');
 
             // Add header row (comma-separated)
             const csvHeader = 'name,ticket type,project,external reference,issuer,requestor,description,status,resolution,responsible,store number,Part 1 Number';
