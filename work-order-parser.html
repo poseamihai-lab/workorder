@@ -1389,8 +1389,8 @@ We will visit the site to replace ${partDesc} on ${formattedDate}, at local stor
             const resolution = '';
             const responsible = '';
             
-            // 11. STORE NUMBER: Leave empty (No information needed)
-            const storeNumber = '';
+            // 11. STORE NUMBER: Use CTR code from location
+            const storeNumber = locationCode || woData.locationCode || '';
             
             // 12. PART 1 NUMBER: Leave empty (No information needed)
             const partNumber = '';
