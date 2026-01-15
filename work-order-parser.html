@@ -477,6 +477,7 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
                     <div><strong>WOT#:</strong> <span id="dispWOT">-</span></div>
                     <div><strong>WO#:</strong> <span id="dispWO">-</span></div>
                     <div><strong>INC#:</strong> <span id="dispINC">-</span></div>
+                    <div><strong>Store Number (CTR):</strong> <span id="dispStoreNumber">-</span></div>
                     <div><strong>Location:</strong> <span id="dispLoc">-</span></div>
                     <div><strong>Description:</strong> <span id="dispDesc">-</span></div>
                     <div><strong>Required Date/Time:</strong> <span id="dispDateTime">-</span></div>
@@ -996,6 +997,7 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
             document.getElementById('dispWOT').textContent = woData.wotNumber || '-';
             document.getElementById('dispWO').textContent = woData.woNumber || '-';
             document.getElementById('dispINC').textContent = woData.incNumber || '-';
+            document.getElementById('dispStoreNumber').textContent = woData.locationCode || '-';
             
             // Create location display with Google Maps link
             const locDisplay = document.getElementById('dispLoc');
@@ -1389,13 +1391,17 @@ We will visit the site to replace ${partDesc} on ${formattedDate}, at local stor
             // 7. DESCRIPTION: Only the short description (clean commas)
             const description = cleanField(shortDesc || '');
             
-            // 8-10. STATUS, RESOLUTION, RESPONSIBLE: Empty
-            const status = '';
+            // 8. STATUS: Set to "In Progress"
+            const status = 'In Progress';
+            
+            // 9. RESOLUTION: Empty
             const resolution = '';
+            
+            // 10. RESPONSIBLE: Empty
             const responsible = '';
             
-            // 11. STORE NUMBER: Empty
-            const storeNumber = '';
+            // 11. STORE NUMBER: Use CTR code from parsed location
+            const storeNumber = cleanField(locationCode || '');
             
             // 12. PART 1 NUMBER: Empty
             const partNumber = '';
@@ -1465,6 +1471,7 @@ We will visit the site to replace ${partDesc} on ${formattedDate}, at local stor
             document.getElementById('dispWOT').textContent = '-';
             document.getElementById('dispWO').textContent = '-';
             document.getElementById('dispINC').textContent = '-';
+            document.getElementById('dispStoreNumber').textContent = '-';
             document.getElementById('dispLoc').textContent = '-';
             document.getElementById('dispDesc').textContent = '-';
             document.getElementById('dispDateTime').textContent = '-';
