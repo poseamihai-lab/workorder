@@ -1322,12 +1322,52 @@ We will visit the site to replace ${partDesc} on ${formattedDate}, at local stor
             const issuer = woData.issuer || 'BFG';
             const requestor = woData.requestor || 'Mihai Posea';
             
+            // Determine ticket type from part description
+            // Options: CMOS Battery, Backplane, Blower, Chassis Management Controller, 
+            // Chassis Management Controller LCD panel, Hard Drive, IO module, Memory, 
+            // Motherboard, PERC Battery, PERC Controller, SD Module, Complete Chassis, 
+            // M640 Node, Power Supply
+            let ticketType = 'Hard Drive'; // Default
+            
+            const partLower = (partDesc + ' ' + partCode).toLowerCase();
+            
+            if (partLower.includes('cmos') || partLower.includes('battery') && !partLower.includes('perc')) {
+                ticketType = 'CMOS Battery';
+            } else if (partLower.includes('perc') && partLower.includes('battery')) {
+                ticketType = 'PERC Battery';
+            } else if (partLower.includes('perc') && (partLower.includes('controller') || partLower.includes('raid'))) {
+                ticketType = 'PERC Controller';
+            } else if (partLower.includes('backplane')) {
+                ticketType = 'Backplane';
+            } else if (partLower.includes('blower') || partLower.includes('fan')) {
+                ticketType = 'Blower';
+            } else if (partLower.includes('chassis') && partLower.includes('management') && partLower.includes('lcd')) {
+                ticketType = 'Chassis Management Controller LCD panel';
+            } else if (partLower.includes('chassis') && partLower.includes('management')) {
+                ticketType = 'Chassis Management Controller';
+            } else if (partLower.includes('chassis')) {
+                ticketType = 'Complete Chassis';
+            } else if (partLower.includes('motherboard') || partLower.includes('system board')) {
+                ticketType = 'Motherboard';
+            } else if (partLower.includes('hard disk') || partLower.includes('hard drive') || partLower.includes('ssd')) {
+                ticketType = 'Hard Drive';
+            } else if (partLower.includes('memory') || partLower.includes('ddr') || partLower.includes('rdimm')) {
+                ticketType = 'Memory';
+            } else if (partLower.includes('sd module') || partLower.includes('sd card')) {
+                ticketType = 'SD Module';
+            } else if (partLower.includes('io module')) {
+                ticketType = 'IO module';
+            } else if (partLower.includes('m640') || partLower.includes('node')) {
+                ticketType = 'M640 Node';
+            } else if (partLower.includes('power supply') || partLower.includes('psu')) {
+                ticketType = 'Power Supply';
+            }
+            
             // ProjeQtor CSV Format (semicolon-delimited):
             // name;ticket type;project;external reference;issuer;requestor;description;status;resolution;responsible;store number;Part 1 Number
             
             const fullPart = partDesc ? `${partDesc}${partCode ? ' - ' + partCode : ''}` : partCode;
             const ticketName = `${wotNumber} - ${woNumber} ${location}/${incNumber} ${shortDesc}`;
-            const ticketType = 'Hard Drive'; // Can be made dynamic based on part type if needed
             const project = 'CTC Servers Support';
             const description = `${shortDesc}. Disk slot: ${diskSlot}. Scheduled for: ${dayOfWeek}, ${execDate} at ${arrivalTime}. Tech contact: ${contactName} ${contactPhone}`;
             const storeNumber = location;
