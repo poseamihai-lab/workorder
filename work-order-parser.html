@@ -1387,7 +1387,7 @@ We will visit the site to replace ${partDesc} on ${formattedDate}, at local stor
             // 12. PART 1 NUMBER: Empty
             const partNumber = '';
             
-            // Build CSV line (ProjeQtor format) - escape fields properly
+            // Build CSV line (comma-separated format for ProjeQtor) - escape fields properly
             const csvLine = [
                 ticketName,
                 ticketType,
@@ -1402,15 +1402,15 @@ We will visit the site to replace ${partDesc} on ${formattedDate}, at local stor
                 storeNumber,
                 partNumber
             ].map(field => {
-                // Escape special characters for CSV
-                if (field && (field.includes(';') || field.includes('"') || field.includes('\n'))) {
+                // Escape special characters for CSV (comma-separated)
+                if (field && (field.includes(',') || field.includes('"') || field.includes('\n'))) {
                     return '"' + field.replace(/"/g, '""') + '"';
                 }
                 return field;
-            }).join(';');
+            }).join(',');
 
-            // Add header row
-            const csvHeader = 'name;ticket type;project;external reference;issuer;requestor;description;status;resolution;responsible;store number;Part 1 Number';
+            // Add header row (comma-separated)
+            const csvHeader = 'name,ticket type,project,external reference,issuer,requestor,description,status,resolution,responsible,store number,Part 1 Number';
             const csvContent = csvHeader + '\n' + csvLine;
 
             // Create blob and download
