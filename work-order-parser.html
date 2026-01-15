@@ -1039,13 +1039,17 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
 
                 const apiTime = `${hours.toString().padStart(2, '0')}:${mins}`;
 
-                // Call API
+                // Call API with CORS proxy workaround
                 const apiUrl = `https://sippbx01.itwizard.ca/custom_apps/infonode.php?date=${apiDate}&time=${apiTime}`;
-                const response = await fetch(apiUrl);
+                
+                // Try with CORS proxy
+                const corsProxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(apiUrl)}`;
+                const response = await fetch(corsProxyUrl);
                 
                 if (!response.ok) throw new Error('API request failed');
                 
-                const data = await response.json();
+                const proxyData = await response.json();
+                const data = JSON.parse(proxyData.contents);
                 
                 if (data && data.assigned_person) {
                     return {
