@@ -1322,44 +1322,45 @@ We will visit the site to replace ${partDesc} on ${formattedDate}, at local stor
             const issuer = woData.issuer || 'BFG';
             const requestor = woData.requestor || 'Mihai Posea';
             
-            // Determine ticket type from part description
+            // Determine ticket type from part description AND short description
             // Options: CMOS Battery, Backplane, Blower, Chassis Management Controller, 
             // Chassis Management Controller LCD panel, Hard Drive, IO module, Memory, 
             // Motherboard, PERC Battery, PERC Controller, SD Module, Complete Chassis, 
             // M640 Node, Power Supply
             let ticketType = 'Hard Drive'; // Default
             
-            const partLower = (partDesc + ' ' + partCode).toLowerCase();
+            // Search in both part info and short description
+            const searchText = (partDesc + ' ' + partCode + ' ' + shortDesc).toLowerCase();
             
-            if (partLower.includes('cmos') || partLower.includes('battery') && !partLower.includes('perc')) {
+            if (searchText.includes('cmos') && searchText.includes('battery')) {
                 ticketType = 'CMOS Battery';
-            } else if (partLower.includes('perc') && partLower.includes('battery')) {
+            } else if (searchText.includes('perc') && searchText.includes('battery')) {
                 ticketType = 'PERC Battery';
-            } else if (partLower.includes('perc') && (partLower.includes('controller') || partLower.includes('raid'))) {
+            } else if (searchText.includes('perc') && (searchText.includes('controller') || searchText.includes('raid'))) {
                 ticketType = 'PERC Controller';
-            } else if (partLower.includes('backplane')) {
+            } else if (searchText.includes('backplane')) {
                 ticketType = 'Backplane';
-            } else if (partLower.includes('blower') || partLower.includes('fan')) {
+            } else if (searchText.includes('blower') || searchText.includes('fan')) {
                 ticketType = 'Blower';
-            } else if (partLower.includes('chassis') && partLower.includes('management') && partLower.includes('lcd')) {
+            } else if (searchText.includes('chassis') && searchText.includes('management') && searchText.includes('lcd')) {
                 ticketType = 'Chassis Management Controller LCD panel';
-            } else if (partLower.includes('chassis') && partLower.includes('management')) {
+            } else if (searchText.includes('chassis') && searchText.includes('management')) {
                 ticketType = 'Chassis Management Controller';
-            } else if (partLower.includes('chassis')) {
+            } else if (searchText.includes('chassis')) {
                 ticketType = 'Complete Chassis';
-            } else if (partLower.includes('motherboard') || partLower.includes('system board')) {
+            } else if (searchText.includes('motherboard') || searchText.includes('system board')) {
                 ticketType = 'Motherboard';
-            } else if (partLower.includes('hard disk') || partLower.includes('hard drive') || partLower.includes('ssd')) {
+            } else if (searchText.includes('hard disk') || searchText.includes('hard drive') || searchText.includes('ssd')) {
                 ticketType = 'Hard Drive';
-            } else if (partLower.includes('memory') || partLower.includes('ddr') || partLower.includes('rdimm')) {
+            } else if (searchText.includes('memory') || searchText.includes('ddr') || searchText.includes('rdimm')) {
                 ticketType = 'Memory';
-            } else if (partLower.includes('sd module') || partLower.includes('sd card')) {
+            } else if (searchText.includes('sd module') || searchText.includes('sd card')) {
                 ticketType = 'SD Module';
-            } else if (partLower.includes('io module')) {
+            } else if (searchText.includes('io module')) {
                 ticketType = 'IO module';
-            } else if (partLower.includes('m640') || partLower.includes('node')) {
+            } else if (searchText.includes('m640') || searchText.includes('node')) {
                 ticketType = 'M640 Node';
-            } else if (partLower.includes('power supply') || partLower.includes('psu')) {
+            } else if (searchText.includes('power supply') || searchText.includes('psu')) {
                 ticketType = 'Power Supply';
             }
             
