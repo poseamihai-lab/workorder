@@ -655,7 +655,8 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
             shortDesc: '',
             address: '',
             issuer: '',
-            requestor: ''
+            requestor: '',
+            cleanLocation: '' // Store clean location for CSV export
         };
 
         // Initialize parts table on load
@@ -795,9 +796,15 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
                 const addressLines = locMatch[1]
                     .split('\n')
                     .map(l => l.trim())
-                    .filter(l => l && l.length > 0 && !l.match(/^(Customer|BFG|Work Order|Priority|Assignment|Service|Service Time|Location|Short)/i));
-                woData.address = addressLines.join(', ');
+                    .filter(l => l && l.length > 0 && !l.match(/^(Customer|BFG|Work Order|Priority|Assignment|Service|Service Time|Location|Short)/i))
+                    .filter(l => l !== ','); // Remove empty comma lines
+                
+                // Clean address: remove double commas, extra spaces
+                woData.address = addressLines.join(', ').replace(/,\s*,/g, ',').trim();
             }
+            
+            // Store clean location for CSV (without HTML/emoji)
+            woData.cleanLocation = woData.locationCode + (woData.address ? ' - ' + woData.address : '');
             
             // Extract short description
             woData.shortDesc = extractField(text, /Short Description:\s*\n?\s*(.+?)(?=\n\n|$)/is) || '';
@@ -1315,7 +1322,7 @@ We will visit the site to replace ${partDesc} on ${formattedDate}, at local stor
             const wotNumber = document.getElementById('dispWOT').textContent;
             const woNumber = document.getElementById('dispWO').textContent;
             const incNumber = document.getElementById('dispINC').textContent;
-            const location = document.getElementById('dispLoc').textContent;
+            const location = woData.cleanLocation || document.getElementById('dispLoc').textContent; // Use clean location from woData
             const shortDesc = document.getElementById('dispDesc').textContent;
             
             // Use parsed issuer and requestor from woData
@@ -1456,7 +1463,7 @@ We will visit the site to replace ${partDesc} on ${formattedDate}, at local stor
             document.getElementById('output4').textContent = 'Generate outputs to see content...';
             document.getElementById('output5').textContent = 'Generate outputs to see content...';
 
-            woData = { woNumber: '', wotNumber: '', incNumber: '', location: '', locationCode: '', shortDesc: '', address: '', issuer: '', requestor: '' };
+            woData = { woNumber: '', wotNumber: '', incNumber: '', location: '', locationCode: '', shortDesc: '', address: '', issuer: '', requestor: '', cleanLocation: '' };
         }
 
         // Set default day on load
