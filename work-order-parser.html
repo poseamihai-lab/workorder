@@ -1224,30 +1224,23 @@ Special instructions for BFG Technician: Once onsite tech reaches the site, plea
 Thank you,`;
             
             // OUTPUT 1 - DO FIRST IN SERVICENOW (URGENT - SLA)
-            const output1 = `1. DO FIRST IN SERVICENOW, BOTH NOTES INTERNAL AND CUSTOMER VISIBLE NOTES
-PART INFORMATION
+            const output1 = `PART INFORMATION
 
 Dell Part Description: ${fullPart}
 Special instructions for BFG Technician: Once onsite tech reaches the site, please call ${contactName} ${contactPhone} first . Do not perform any work without contacting ${contactName}.`;
             
             // OUTPUT 2 - Dispatch Email
-            const output2 = `2. DISPATCH EMAIL
-
-TO: BFG Dispatch Center <dispatcher@bfg.ca>
+            const output2 = `TO: BFG Dispatch Center <dispatcher@bfg.ca>
 Cc: 'CTC Server Tickets' <CTCServerTickets@bfg.ca>; Allan Harriott <allan.harriott@bfg.ca>; Amit Sooknanan <amit.sooknanan@bfg.ca>; Ana Agapi <Ana.Agapi@bfg.ca>; Gee Lee <Gee.Lee@bfg.ca>
 
 
 ${dispatchBody}`;
 
             // OUTPUT 3 - UPDATE SERVICENOW WITH DISPATCH EMAIL internal notes
-            const output3 = `3. UPDATE SERVICENOW WITH DISPATCH EMAIL INTERNAL NOTES
-
-${dispatchBody}`;
+            const output3 = `${dispatchBody}`;
 
             // OUTPUT 4 - Ask for Tech Info
-            const output4 = `4. ASK FOR TECH INFO
-
-Hi Dispatch team,
+            const output4 = `Hi Dispatch team,
 
 Can you please provide contact number for on-site tech, and ensure that once onsite tech reaches the site, ${formattedDate}, at local store time ${arrivalTime}, to please contact ${contactName} ${contactPhone} first.
 
@@ -1257,9 +1250,7 @@ Thank you`;
             // Determine replacement type for final note
             const replacementType = isHardDrive ? 'hard disk' : partDesc.split(' ')[0].toLowerCase();
             
-            const output5 = `5. BFG TRACKER TICKET SUMMARY
-
-BFG Tracker Ticket Subject Line: ${woData.wotNumber} - ${woData.woNumber} - ${woData.locationCode} // ${woData.incNumber} - ${woData.shortDesc}
+            const output5 = `BFG Tracker Ticket Subject Line: ${woData.wotNumber} - ${woData.woNumber} - ${woData.locationCode} // ${woData.incNumber} - ${woData.shortDesc}
 
 ---
 
