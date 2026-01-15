@@ -563,6 +563,7 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
                 <button class="btn btn-input" onclick="generateOutputs()">GENERATE ALL OUTPUTS</button>
 
                 <div style="display: flex; gap: 10px; margin-top: 10px;">
+                    <button class="btn btn-input" style="flex:1" onclick="exportToCSV()">EXPORT TO CSV (PROJEQTOR)</button>
                     <button class="btn btn-secondary" style="flex:1" onclick="clearAll()">CLEAR ALL</button>
                 </div>
             </div>
@@ -1271,6 +1272,84 @@ We will visit the site to replace ${partDesc} on ${formattedDate}, at local stor
                 document.body.removeChild(textArea);
                 showNotification();
             });
+        }
+
+        function exportToCSV() {
+            // Collect all data from form fields
+            const partDesc = document.getElementById('partDesc').value || '';
+            const partCode = document.getElementById('partCode').value || '';
+            const contactName = document.getElementById('contactName').value || '';
+            const contactPhone = document.getElementById('contactPhone').value || '';
+            const arrivalTime = document.getElementById('arrivalTime').value || '';
+            const dayOfWeek = document.getElementById('dayOfWeek').value || '';
+            const execDate = document.getElementById('execDate').value || '';
+            const diskSlot = document.getElementById('diskSlot').value || '';
+
+            // Get data from extracted info
+            const wotNumber = document.getElementById('dispWOT').textContent;
+            const woNumber = document.getElementById('dispWO').textContent;
+            const incNumber = document.getElementById('dispINC').textContent;
+            const location = document.getElementById('dispLoc').textContent;
+            const shortDesc = document.getElementById('dispDesc').textContent;
+            
+            // ProjeQtor CSV Format (semicolon-delimited):
+            // name;ticket type;project;external reference;issuer;requestor;description;status;resolution;responsible;store number;Part 1 Number
+            
+            const fullPart = partDesc ? `${partDesc}${partCode ? ' - ' + partCode : ''}` : partCode;
+            const ticketName = `${wotNumber} - ${woNumber} ${incNumber ? incNumber + ' ' : ''}${shortDesc}`;
+            const ticketType = 'Hard Drive'; // Can be made dynamic based on part type if needed
+            const project = 'CTC Servers Support';
+            const description = `${shortDesc}. Disk slot: ${diskSlot}. Scheduled for: ${dayOfWeek}, ${execDate} at ${arrivalTime}. Tech contact: ${contactName} ${contactPhone}`;
+            const storeNumber = location;
+            
+            // Build CSV line (ProjeQtor format)
+            const csvLine = [
+                ticketName,
+                ticketType,
+                project,
+                incNumber,
+                'BFG', // issuer
+                'Mihai Posea', // requestor (can be customized)
+                description,
+                '', // status (empty)
+                '', // resolution (empty)
+                '', // responsible (empty)
+                storeNumber,
+                fullPart
+            ].map(field => {
+                // Escape semicolons and quotes in fields
+                if (field.includes(';') || field.includes('"') || field.includes('\n')) {
+                    return '"' + field.replace(/"/g, '""') + '"';
+                }
+                return field;
+            }).join(';');
+
+            // Add header if needed
+            const csvHeader = 'name;ticket type;project;external reference;issuer;requestor;description;status;resolution;responsible;store number;Part 1 Number';
+            const csvContent = csvHeader + '\n' + csvLine;
+
+            // Create blob and download
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            const fileName = `ProjeQtor_${woNumber || 'ticket'}_${new Date().toISOString().split('T')[0]}.csv`;
+            
+            link.setAttribute('href', url);
+            link.setAttribute('download', fileName);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            // Show notification
+            const notification = document.getElementById('copyNotification');
+            const originalText = notification.textContent;
+            notification.textContent = `CSV exported as ${fileName}`;
+            notification.style.display = 'block';
+            setTimeout(() => {
+                notification.textContent = originalText;
+                notification.style.display = 'none';
+            }, 2000);
         }
 
         function showNotification() {
