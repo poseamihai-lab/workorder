@@ -1,0 +1,1917 @@
+<!--
+Work Order Parser v1.0
+© 2026 Mihai Posea
+Proprietary - All Rights Reserved
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Work Order Generator</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            margin: 0;
+            padding: 15px;
+            background: #e9ecef;
+            min-height: 100vh;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin: 10px 0 20px 0;
+        }
+
+        .main-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            max-width: 100%;
+            margin: 0 auto;
+        }
+
+        @media (max-width: 1100px) {
+            .main-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .panel {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .panel h2 {
+            margin: 0 0 15px 0;
+            color: #444;
+            font-size: 16px;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 8px;
+        }
+
+        .panel h3 {
+            margin: 0 0 10px 0;
+            color: #555;
+            font-size: 14px;
+            background: #f8f9fa;
+            padding: 8px;
+            border-radius: 4px;
+        }
+
+        .input-section {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .input-group label {
+            font-weight: 600;
+            color: #555;
+            font-size: 12px;
+        }
+
+        .input-group label small {
+            font-weight: 400;
+            font-size: 10px;
+            display: block;
+            margin-top: 3px;
+            color: #777;
+        }
+
+        .input-group input,
+        .input-group textarea,
+        .input-group select {
+            padding: 8px 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        .input-group input:focus,
+        .input-group textarea:focus {
+            outline: none;
+            border-color: #007bff;
+        }
+
+        .paste-area {
+            min-height: 100px;
+            font-family: 'Consolas', monospace;
+            font-size: 12px;
+            resize: vertical;
+            line-height: 1.6;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .btn-input {
+            background: #007bff;
+            color: white;
+            font-size: 16px;
+            width: 100%;
+            padding: 12px;
+        }
+
+        .btn-input:hover {
+            background: #0056b3;
+        }
+
+        .btn-copy {
+            background: #28a745;
+            color: white;
+            font-size: 11px;
+            padding: 6px 12px;
+        }
+
+        .btn-copy:hover {
+            background: #1e7e34;
+        }
+
+        .btn-clear {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-clear:hover {
+            background: #c82333;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .outputs-container {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 15px;
+        }
+
+        @media (max-width: 900px) {
+            .outputs-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .output-panel {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .output-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #17a2b8;
+        }
+
+        .output-header h3 {
+            margin: 0;
+            color: #333;
+            font-size: 13px;
+            background: none;
+            padding: 0;
+        }
+
+        .output-box {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            padding: 12px;
+            min-height: 200px;
+            max-height: 350px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            font-family: 'Consolas', monospace;
+            font-size: 11px;
+            line-height: 1.5;
+        }
+
+        .row {
+            display: flex;
+            gap: 10px;
+        }
+
+        .row .input-group {
+            flex: 1;
+        }
+
+        .copy-notification {
+            display: none;
+            background: #28a745;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 6px;
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            font-weight: 600;
+        }
+
+        .extracted-info {
+            background: #e7f3ff;
+            border: 1px solid #b3d7ff;
+            border-radius: 4px;
+            padding: 10px;
+            font-size: 11px;
+            margin-bottom: 15px;
+        }
+
+        .extracted-info div {
+            margin: 3px 0;
+        }
+
+        .extracted-info strong {
+            color: #0056b3;
+        }
+
+        .section-divider {
+            border-top: 1px solid #eee;
+            margin: 15px 0;
+            padding-top: 15px;
+        }
+
+        .urgent-panel {
+            border: 3px solid #dc3545;
+            box-shadow: 0 2px 15px rgba(220, 53, 69, 0.3);
+        }
+
+        .urgent-header {
+            border-bottom: 2px solid #dc3545 !important;
+        }
+
+        .urgent-badge {
+            background: #dc3545;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 700;
+            margin-right: 8px;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+
+        .autocomplete-container {
+            position: relative;
+            width: 100%;
+        }
+
+        .autocomplete-list {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #ddd;
+            border-top: none;
+            border-radius: 0 0 4px 4px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 100;
+            display: none;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .autocomplete-list.show {
+            display: block;
+        }
+
+        .autocomplete-item {
+            padding: 8px 10px;
+            cursor: pointer;
+            font-size: 12px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .autocomplete-item:hover,
+        .autocomplete-item.selected {
+            background: #e7f3ff;
+        }
+
+        .parts-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+            margin-top: 10px;
+        }
+
+        .parts-table thead {
+            background: #f8f9fa;
+            position: sticky;
+            top: 0;
+        }
+
+        .parts-table th,
+        .parts-table td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .parts-table th {
+            font-weight: 600;
+            color: #333;
+            background: #e9ecef;
+        }
+
+        .parts-table tbody tr:hover {
+            background: #f8f9fa;
+            cursor: pointer;
+        }
+
+        .parts-table .part-code {
+            font-weight: 600;
+            color: #007bff;
+        }
+
+        .parts-filter {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .parts-filter input {
+            flex: 1;
+            padding: 8px 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .parts-filter select {
+            padding: 8px 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .parts-panel {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .btn-insert {
+            background: #17a2b8;
+            color: white;
+            font-size: 11px;
+            padding: 4px 8px;
+        }
+
+        .btn-insert:hover {
+            background: #138496;
+        }
+
+        .parts-badge {
+            background: #17a2b8;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: 600;
+            margin-left: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Work Order Generator</h1>
+
+    <div class="main-container">
+        <!-- LEFT PANEL - PARTS DATABASE -->
+        <div class="panel">
+            <h2>DELL PARTS DATABASE <span class="parts-badge" id="partCountBadge">16 Parts</span></h2>
+
+            <!-- Auto-complete Search -->
+            <div class="input-group" style="margin-bottom: 15px;">
+                <label>Quick Part Search (Auto-complete)
+                    <small>Start typing part code or description</small>
+                </label>
+                <div class="autocomplete-container">
+                    <input type="text" id="partSearch" placeholder="e.g., CBF-DEL-HD or 1.8TB..." 
+                           oninput="filterPartsList(this.value)" 
+                           onfocus="showPartsDropdown()" 
+                           onkeydown="handlePartSearchKeydown(event)">
+                    <div class="autocomplete-list" id="partsList"></div>
+                </div>
+            </div>
+
+            <div class="section-divider"></div>
+
+            <!-- Category Filter -->
+            <div class="parts-filter">
+                <input type="text" id="tableFilter" placeholder="Filter by code or description..." 
+                       oninput="filterPartsTable()">
+                <select id="categoryFilter" onchange="filterPartsTable()">
+                    <option value="">All Categories</option>
+                    <option value="AC">Accessories</option>
+                    <option value="BA">Batteries</option>
+                    <option value="CB">Cables</option>
+                    <option value="HD">Hard Drives</option>
+                    <option value="PW">Power Supply</option>
+                    <option value="SV">Servers</option>
+                </select>
+            </div>
+
+            <!-- Parts Reference Table -->
+            <div class="parts-panel">
+                <table class="parts-table" id="partsTable">
+                    <thead>
+                        <tr>
+                            <th style="width: 35%;">Part Code</th>
+                            <th style="width: 65%;">Description</th>
+                        </tr>
+                    </thead>
+                    <tbody id="partsTableBody">
+                        <!-- Populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- RIGHT PANEL - INPUTS -->
+        <div class="panel">
+            <h2>INPUT SECTION</h2>
+
+            <div class="input-section">
+                <!-- Paste Area -->
+                <div class="input-group">
+                    <label>PASTE DETAILS HERE
+                        <small>(FORWARDED EMAIL FROM SERVICE NOTIFICATION, WOT NUMBER, CONTACT INFO, REQUESTED DATE AND TIME FROM SERVICE NOW FOR THE SERVICE CALL)</small>
+                    </label>
+                    <textarea class="paste-area" id="pasteInput" placeholder="Line 1: Paste here the forward email from Service Now Notification
+Line 2: Paste here from service now ticket the date and time of service (Description, System Info)
+Line 3: Paste here the contact info name and phone number
+Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></textarea>
+                </div>
+
+                <button class="btn btn-input" onclick="parseWorkOrder()">PARSE WORK ORDER</button>
+
+                <!-- Extracted Info Display -->
+                <div class="extracted-info" id="extractedInfo">
+                    <div><strong>WOT#:</strong> <span id="dispWOT">-</span></div>
+                    <div><strong>WO#:</strong> <span id="dispWO">-</span></div>
+                    <div><strong>INC#:</strong> <span id="dispINC">-</span></div>
+                    <div><strong>Store Number:</strong> <span id="dispStoreNumber">-</span></div>
+                    <div><strong>Location:</strong> <span id="dispLoc">-</span></div>
+                    <div><strong>Description:</strong> <span id="dispDesc">-</span></div>
+                    <div><strong>Required Date/Time:</strong> <span id="dispDateTime">-</span></div>
+                    <div><strong>Day/After Closure:</strong> <span id="dispEOF">-</span></div>
+                    <div><strong>Contact:</strong> <span id="dispContact">-</span></div>
+                </div>
+
+                <div class="section-divider"></div>
+
+                <!-- Manual Input Fields -->
+                <h3>PART & CONTACT DETAILS</h3>
+
+                <div class="input-group">
+                    <label>Part Description:</label>
+                    <input type="text" id="partDesc" placeholder="e.g., 1.8TB hard disk DP/N 0GP3FR or 0JY57X...">
+                </div>
+
+                <div class="input-group">
+                    <label>Part Code (CBF-...):</label>
+                    <input type="text" id="partCode" placeholder="e.g., CBF-DEL-HD-XJ233">
+                </div>
+
+                <div class="input-group">
+                    <label>Disk Slot:</label>
+                    <input type="text" id="diskSlot" placeholder="e.g., 0:0:0">
+                </div>
+
+                <div class="input-group">
+                    <label>Contact Name:</label>
+                    <input type="text" id="contactName" placeholder="e.g., Jaime">
+                </div>
+
+                <div class="input-group">
+                    <label>Contact Phone:</label>
+                    <input type="text" id="contactPhone" placeholder="e.g., 905-259-2063">
+                </div>
+
+                <div class="section-divider"></div>
+
+                <h3>DATE & TIME</h3>
+
+                <div class="row">
+                    <div class="input-group">
+                        <label>Day of Week:</label>
+                        <select id="dayOfWeek">
+                            <option value="Monday">Monday</option>
+                            <option value="Tuesday">Tuesday</option>
+                            <option value="Wednesday">Wednesday</option>
+                            <option value="Thursday">Thursday</option>
+                            <option value="Friday">Friday</option>
+                            <option value="Saturday">Saturday</option>
+                            <option value="Sunday">Sunday</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label>Date:</label>
+                        <input type="text" id="execDate" placeholder="e.g., December 30, 2025">
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="input-group">
+                        <label>Arrival Time:</label>
+                        <input type="text" id="arrivalTime" placeholder="e.g., 8:45 PM EST">
+                    </div>
+                    <div class="input-group">
+                        <label>EOD Time:</label>
+                        <input type="text" id="eodTime" placeholder="e.g., 9:00 PM EST">
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label>Today/Tonight/Tomorrow: <small>(optional)</small></label>
+                    <select id="whenWord">
+                        <option value="">-- Select if applies --</option>
+                        <option value="today">today</option>
+                        <option value="tonight">tonight</option>
+                        <option value="tomorrow">tomorrow</option>
+                    </select>
+                </div>
+
+                <div class="section-divider"></div>
+
+                <button class="btn btn-input" onclick="generateOutputs()">GENERATE ALL OUTPUTS</button>
+
+                <div style="display: flex; gap: 10px; margin-top: 10px;">
+                    <button class="btn btn-input" style="flex:1" onclick="exportToCSV()">EXPORT TO CSV (PROJEQTOR)</button>
+                    <button class="btn btn-secondary" style="flex:1" onclick="clearAll()">CLEAR ALL</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- OUTPUTS SECTION - FULL WIDTH -->
+    <div style="max-width: 100%; margin: 0 auto; padding: 0 15px;">
+        <div class="outputs-container">
+            <!-- OUTPUT 1 - URGENT SLA -->
+            <div class="output-panel urgent-panel">
+                <div class="output-header urgent-header">
+                    <h3><span class="urgent-badge">SLA - DO THIS FIRST!</span> 1. DO FIRST IN SERVICENOW, BOTH NOTES INTERNAL AND CUSTOMER VISIBLE NOTES</h3>
+                    <button class="btn btn-copy" onclick="copyOutput('output1')">COPY</button>
+                </div>
+                <div class="output-box" id="output1">Generate outputs to see content...</div>
+            </div>
+
+            <!-- OUTPUT 2 - DISPATCH EMAIL -->
+            <div class="output-panel">
+                <div class="output-header">
+                    <h3>2. DISPATCH EMAIL</h3>
+                    <button class="btn btn-copy" onclick="copyOutput('output2')">COPY</button>
+                </div>
+                <div class="output-box" id="output2">Generate outputs to see content...</div>
+            </div>
+
+            <!-- OUTPUT 3 - UPDATE SERVICENOW -->
+            <div class="output-panel">
+                <div class="output-header">
+                    <h3>3. UPDATE SERVICENOW WITH DISPATCH EMAIL INTERNAL NOTES</h3>
+                    <button class="btn btn-copy" onclick="copyOutput('output3')">COPY</button>
+                </div>
+                <div class="output-box" id="output3">Generate outputs to see content...</div>
+            </div>
+
+            <!-- OUTPUT 4 - ASK FOR TECH INFO -->
+            <div class="output-panel">
+                <div class="output-header">
+                    <h3>4. ASK FOR TECH INFO</h3>
+                    <button class="btn btn-copy" onclick="copyOutput('output4')">COPY</button>
+                </div>
+                <div class="output-box" id="output4">Generate outputs to see content...</div>
+            </div>
+
+            <!-- OUTPUT 5 - BFG TRACKER TICKET SUMMARY -->
+            <div class="output-panel">
+                <div class="output-header">
+                    <h3>5. BFG TRACKER TICKET SUMMARY</h3>
+                    <button class="btn btn-copy" onclick="copyOutput('output5')">COPY</button>
+                </div>
+                <div class="output-box" id="output5">Generate outputs to see content...</div>
+            </div>
+
+            <!-- OUTPUT 6 - UPDATE SERVICE NOW WITH TECH STORE VISIT (CUSTOMER VISIBLE ONLY) -->
+            <div class="output-panel">
+                <div class="output-header">
+                    <h3>6. ONCE DISPATCH CONFIRMS TECH STORE VISIT, UPDATE SERVICE NOW WITH TECH STORE VISIT (CUSTOMER VISIBLE ONLY)</h3>
+                    <button class="btn btn-copy" onclick="copyOutput('output6')">COPY</button>
+                </div>
+                <div class="output-box" id="output6">Generate outputs to see content...</div>
+            </div>
+        </div>
+        </div>
+    </div>
+
+    <div class="copy-notification" id="copyNotification">Copied!</div>
+
+    <script>
+        // Dell Parts Database
+        const dellPartsDatabase = [
+            { code: 'CBF-DEL-AC-05YC4P', description: 'Dell 05YC4P System Board FC640/M640', category: 'AC' },
+            { code: 'CBF-DEL-AC-08X25K', description: 'Dell 08X25K SAS Backplane Controller for VRTX', category: 'AC' },
+            { code: 'CBF-DEL-AC-0CJ3W7', description: 'Dell 0CJ3W7 Fan Assembly, Rear VRTX', category: 'AC' },
+            { code: 'CBF-DEL-AC-0V60TN', description: 'Dell 0V60TN Hot Swap Fan for Dell PowerEdge VRTX', category: 'AC' },
+            { code: 'CBF-DEL-AC-0Y9CJ7', description: 'Dell 0Y9CJ7 Poweredge M640 Fc640 Idsdm Riser Card', category: 'AC' },
+            { code: 'CBF-DEL-AC-34V0R', description: 'Dell 34V0R Vrtx CMC Control Module', category: 'AC' },
+            { code: 'CBF-DEL-AC-P3WV4', description: 'Dell P3WV4 PERC Mini Mono 1GB Cache Raid Controller for VRTX', category: 'AC' },
+            { code: 'CBF-DEL-AC-R7YTT', description: 'Dell R7YTT 16GB C10 U3 SDHC Micro SD Card', category: 'AC' },
+            { code: 'CBF-DEL-AC-TN78Y', description: 'Dell TN78Y 32GB PC4-21300 DDR4-2666MHz ECC Memory', category: 'AC' },
+            { code: 'CBF-DEL-BA-037CT1', description: 'Dell 037CT1 Dell 3.7V 1.8Wh 500mAh Lithium-Ion Battery', category: 'BA' },
+            { code: 'CBF-DEL-BA-75481', description: 'Dell CPX-75481 Lithium Coin Cell Battery, 3V, 220mah', category: 'BA' },
+            { code: 'CBF-DEL-BA-H132V', description: 'Dell CPX-H132V 2.6W 1C, LION, Length Long, PERC9 Primary Battery', category: 'BA' },
+            { code: 'CBF-DEL-CB-0NV6R0', description: 'Dell 0NV6R0 Mini SAS SFF8087 Cable for VRTX', category: 'CB' },
+            { code: 'CBF-DEL-HD-XJ233', description: '1.8TB hard disk (DP/N 0GP3FR or 0JY57X or 00WRRF)', category: 'HD' },
+            { code: 'CBF-DEL-PW-095HR5', description: 'Dell 095HR5 1600W Delta Power Supply', category: 'PW' },
+            { code: 'CBF-DEL-SV-M640', description: 'Dell PowerEdge M640 Server Blade for VRTX, Intel Xeon 2.2G', category: 'SV' },
+            { code: 'CBF-DEL-SV-VRTX', description: 'Dell PowerEdge VRTX Server 7 x 1.8TB', category: 'SV' }
+        ];
+
+        // Store parsed work order data
+        let woData = {
+            woNumber: '',
+            wotNumber: '',
+            incNumber: '',
+            location: '',
+            locationCode: '',
+            shortDesc: '',
+            address: '',
+            issuer: '',
+            requestor: '',
+            cleanLocation: '' // Store clean location for CSV export
+        };
+
+        // Extract province from address
+        function extractProvinceFromAddress(address) {
+            const provinceMap = {
+                'ON': 'Ontario', 'QC': 'Quebec', 'BC': 'British Columbia',
+                'AB': 'Alberta', 'MB': 'Manitoba', 'SK': 'Saskatchewan',
+                'NS': 'Nova Scotia', 'NB': 'New Brunswick', 'NL': 'Newfoundland and Labrador',
+                'PE': 'Prince Edward Island', 'NT': 'Northwest Territories',
+                'YT': 'Yukon', 'NU': 'Nunavut'
+            };
+            const match = address.match(/([A-Z]{2})\s*$/i);
+            if (match) {
+                const code = match[1].toUpperCase();
+                return provinceMap[code] || code;
+            }
+            return null;
+        }
+
+        // Get timezone info for province
+        function getTimezoneInfo(province) {
+            const timezones = {
+                'Ontario': { zone: 'EST/EDT', offset: -5, dstOffset: -4 },
+                'Quebec': { zone: 'EST/EDT', offset: -5, dstOffset: -4 },
+                'Manitoba': { zone: 'CST/CDT', offset: -6, dstOffset: -5 },
+                'Saskatchewan': { zone: 'CST', offset: -6, dstOffset: -6 },
+                'Alberta': { zone: 'MST/MDT', offset: -7, dstOffset: -6 },
+                'British Columbia': { zone: 'PST/PDT', offset: -8, dstOffset: -7 },
+                'Nova Scotia': { zone: 'AST/ADT', offset: -4, dstOffset: -3 },
+                'New Brunswick': { zone: 'AST/ADT', offset: -4, dstOffset: -3 },
+                'Newfoundland and Labrador': { zone: 'NST/NDT', offset: -3.5, dstOffset: -2.5 },
+                'Prince Edward Island': { zone: 'AST/ADT', offset: -4, dstOffset: -3 },
+                'Northwest Territories': { zone: 'MST', offset: -7, dstOffset: -7 },
+                'Yukon': { zone: 'PST', offset: -8, dstOffset: -8 },
+                'Nunavut': { zone: 'CST/CDT', offset: -6, dstOffset: -5 }
+            };
+            return timezones[province] || { zone: 'EST/EDT', offset: -5, dstOffset: -4 };
+        }
+
+        // Check if date is in daylight saving time
+        function isDaylightSavingTime(date) {
+            const year = date.getFullYear();
+            const march = new Date(year, 2, 1);
+            const november = new Date(year, 10, 1);
+            const secondSundayMarch = new Date(year, 2, 1 + (7 - march.getDay()) % 7 + 7);
+            const firstSundayNovember = new Date(year, 10, 1 + (7 - november.getDay()) % 7);
+            return date >= secondSundayMarch && date < firstSundayNovember;
+        }
+
+        // Get timezone abbreviation
+        function getTimezoneAbbr(province, isDST) {
+            const abbrs = {
+                'Ontario': isDST ? 'EDT' : 'EST',
+                'Quebec': isDST ? 'EDT' : 'EST',
+                'Manitoba': isDST ? 'CDT' : 'CST',
+                'Saskatchewan': 'CST',
+                'Alberta': isDST ? 'MDT' : 'MST',
+                'British Columbia': isDST ? 'PDT' : 'PST',
+                'Nova Scotia': isDST ? 'ADT' : 'AST',
+                'New Brunswick': isDST ? 'ADT' : 'AST',
+                'Newfoundland and Labrador': isDST ? 'NDT' : 'NST',
+                'Prince Edward Island': isDST ? 'ADT' : 'AST',
+                'Northwest Territories': 'MST',
+                'Yukon': 'PST',
+                'Nunavut': isDST ? 'CDT' : 'CST'
+            };
+            return abbrs[province] || (isDST ? 'EDT' : 'EST');
+        }
+
+        // Unified time string parser - handles multiple formats
+        function parseTimeString(dateTimeStr) {
+            if (!dateTimeStr) return null;
+            
+            const result = {
+                month: null,
+                day: null,
+                year: null,
+                hours: null,
+                minutes: 0,
+                ampm: ''
+            };
+            
+            // Format 1: MM/DD/YY - Hpm or MM/DD/YY - HH:MMpm (BFG format)
+            let match = dateTimeStr.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})\s*-\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i);
+            if (match) {
+                result.month = parseInt(match[1]);
+                result.day = parseInt(match[2]);
+                result.year = match[3];
+                result.hours = parseInt(match[4]);
+                result.minutes = match[5] ? parseInt(match[5]) : 0;
+                result.ampm = match[6] ? match[6].toUpperCase() : '';
+                
+                // Convert 2-digit year to 4-digit
+                if (result.year.length === 2) {
+                    result.year = (parseInt(result.year) < 50 ? 2000 : 1900) + parseInt(result.year);
+                }
+                return result;
+            }
+            
+            // Format 2: DayName MM/DD/YYYY at HH:MMam/pm (Regular format)
+            // e.g., "Thursday 01/18/2026 at 09:05 PM"
+            match = dateTimeStr.match(/(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)?\s*(\d{1,2})\/(\d{1,2})\/(\d{4})\s+at\s+(\d{1,2}):(\d{2})\s*(am|pm)?/i);
+            if (match) {
+                result.month = parseInt(match[1]);
+                result.day = parseInt(match[2]);
+                result.year = parseInt(match[3]);
+                result.hours = parseInt(match[4]);
+                result.minutes = parseInt(match[5]);
+                result.ampm = match[6] ? match[6].toUpperCase() : '';
+                return result;
+            }
+            
+            // Format 3: MM-DD-YYYY - HH:MM
+            match = dateTimeStr.match(/(\d{1,2})-(\d{1,2})-(\d{2,4})\s*-\s*(\d{1,2}):(\d{2})/);
+            if (match) {
+                result.month = parseInt(match[1]);
+                result.day = parseInt(match[2]);
+                result.year = match[3];
+                result.hours = parseInt(match[4]);
+                result.minutes = parseInt(match[5]);
+                if (result.year.length === 2) {
+                    result.year = (parseInt(result.year) < 50 ? 2000 : 1900) + parseInt(result.year);
+                }
+                return result;
+            }
+            
+            return null;
+        }
+
+        // Initialize parts table on load
+        function initializePartsDatabase() {
+            renderPartsTable(dellPartsDatabase);
+        }
+
+        // Render parts table
+        function renderPartsTable(parts) {
+            const tbody = document.getElementById('partsTableBody');
+            tbody.innerHTML = parts.map(part => `
+                <tr onclick="selectPart('${part.code}', '${part.description.replace(/'/g, "\\'")}')">
+                    <td class="part-code">${part.code}</td>
+                    <td>${part.description}</td>
+                </tr>
+            `).join('');
+        }
+
+        // Filter parts list for auto-complete
+        function filterPartsList(query) {
+            if (!query) {
+                document.getElementById('partsList').classList.remove('show');
+                return;
+            }
+
+            const filtered = dellPartsDatabase.filter(part => 
+                part.code.toLowerCase().includes(query.toLowerCase()) ||
+                part.description.toLowerCase().includes(query.toLowerCase())
+            );
+
+            const list = document.getElementById('partsList');
+            if (filtered.length === 0) {
+                list.innerHTML = '<div style="padding: 8px; color: #999;">No parts found</div>';
+            } else {
+                list.innerHTML = filtered.map((part, idx) => `
+                    <div class="autocomplete-item" onclick="selectPart('${part.code}', '${part.description.replace(/'/g, "\\'")}')" data-index="${idx}">
+                        <strong>${part.code}</strong> - ${part.description.substring(0, 50)}...
+                    </div>
+                `).join('');
+            }
+            list.classList.add('show');
+        }
+
+        // Show/hide dropdown
+        function showPartsDropdown() {
+            const search = document.getElementById('partSearch').value;
+            if (search) filterPartsList(search);
+        }
+
+        // Handle keyboard navigation in search
+        function handlePartSearchKeydown(event) {
+            const list = document.getElementById('partsList');
+            const items = list.querySelectorAll('.autocomplete-item');
+            if (items.length === 0) return;
+
+            if (event.key === 'ArrowDown') {
+                event.preventDefault();
+                items[0].classList.add('selected');
+            } else if (event.key === 'Enter') {
+                event.preventDefault();
+                const selected = list.querySelector('.autocomplete-item.selected');
+                if (selected) selected.click();
+            }
+        }
+
+        // Filter parts table
+        function filterPartsTable() {
+            const searchTerm = document.getElementById('tableFilter').value.toLowerCase();
+            const categoryFilter = document.getElementById('categoryFilter').value;
+
+            const filtered = dellPartsDatabase.filter(part => {
+                const matchesSearch = part.code.toLowerCase().includes(searchTerm) ||
+                    part.description.toLowerCase().includes(searchTerm);
+                const matchesCategory = !categoryFilter || part.category === categoryFilter;
+                return matchesSearch && matchesCategory;
+            });
+
+            renderPartsTable(filtered);
+        }
+
+        // Select part and populate fields
+        function selectPart(code, description) {
+            document.getElementById('partCode').value = code;
+            document.getElementById('partDesc').value = description;
+            document.getElementById('partSearch').value = '';
+            document.getElementById('partsList').classList.remove('show');
+            document.getElementById('tableFilter').value = '';
+            document.getElementById('categoryFilter').value = '';
+            renderPartsTable(dellPartsDatabase);
+        }
+
+
+        // Parse BFG Dispatch Form format
+        function parseBFGDispatchForm(text) {
+            // Check if this is a BFG Dispatch Form
+            if (!text.includes('BFG Dispatch Form')) {
+                return false;
+            }
+
+            // Extract WO/WOT/INC numbers
+            const woMatch = text.match(/WO\d+/i);
+            const wotMatch = text.match(/WOT\d+/i);
+            const incMatch = text.match(/INC\d+/i);
+
+            if (!woMatch && !wotMatch && !incMatch) {
+                return false;
+            }
+
+            woData.woNumber = woMatch ? woMatch[0] : '';
+            woData.wotNumber = wotMatch ? wotMatch[0] : '';
+            woData.incNumber = incMatch ? incMatch[0] : '';
+
+            // Extract short description from "Short Description:" field
+            const shortDescMatch = text.match(/Short Description:\s*\n?\s*(.+?)(?=\n|$)/i);
+            if (shortDescMatch) {
+                woData.shortDesc = shortDescMatch[1].trim();
+            }
+
+            // Extract FGL number from "Work Order Type: BF - Canadian Tire FGL 330"
+            const fglMatch = text.match(/Work Order Type:.*?FGL\s*(\d+)/i);
+            if (fglMatch) {
+                woData.locationCode = 'FGL' + fglMatch[1];
+            } else {
+                // Try alternative FGL format
+                const fglAltMatch = text.match(/FGL\s*(\d+)/i);
+                if (fglAltMatch) {
+                    woData.locationCode = 'FGL' + fglAltMatch[1];
+                }
+            }
+
+            // Extract store location (address lines + city) from "STORE LOCATION" section FIRST
+            // so we can determine timezone for date/time parsing
+            // Handle multi-line address by using [\s\S] to match across newlines
+            const addressLine1Match = text.match(/Address Line 1\s*\n([\s\S]+?)(?=\nAddress Line 2|\nCity)/i);
+            const addressLine2Match = text.match(/Address Line 2\s*\n([\s\S]+?)(?=\nCity)/i);
+            const cityMatch = text.match(/City \/ Province \/ Postal Code\s*\n\s*(.+?)(?=\n\s*STORE CONTACT|$)/i);
+
+            const addressParts = [];
+            if (addressLine1Match) {
+                const lines = addressLine1Match[1]
+                    .split('\n')
+                    .map(l => l.trim())
+                    .filter(l => l && l.length > 0);
+                addressParts.push(...lines);
+            }
+            if (addressLine2Match) {
+                const lines = addressLine2Match[1]
+                    .split('\n')
+                    .map(l => l.trim())
+                    .filter(l => l && l.length > 0);
+                addressParts.push(...lines);
+            }
+            if (cityMatch && cityMatch[1].trim()) {
+                addressParts.push(cityMatch[1].trim());
+            }
+
+            woData.address = addressParts.join(', ');
+
+            // Store clean location for CSV
+            woData.cleanLocation = woData.locationCode + (woData.address ? ' - ' + woData.address : '');
+
+            // Extract date/time from "Required Date/Time of Service?" and convert to 24-hour format
+            const dateTimeMatch = text.match(/Required Date\/Time of Service\?\s*\n?\s*(.+?)(?=\n|During|$)/i);
+            if (dateTimeMatch) {
+                const dateTimeStr = dateTimeMatch[1].trim();
+                console.log('[DEBUG BFG] Found dateTimeStr:', dateTimeStr);
+
+                // Parse time - handle both "6pm" and "6:00pm" formats
+                const timeMatch = dateTimeStr.match(/(\d{1,2})(?::(\d{2}))?\s*(?:am|pm)?/i);
+                if (timeMatch) {
+                    let hours = parseInt(timeMatch[1]);
+                    const minutes = timeMatch[2] ? parseInt(timeMatch[2]) : 0;
+                    const ampmMatch = dateTimeStr.match(/(am|pm)/i);
+                    const ampm = ampmMatch ? ampmMatch[1].toUpperCase() : '';
+
+                    // Convert to 24-hour if necessary
+                    let hours24 = hours;
+                    if (ampm) {
+                        if (ampm === 'PM' && hours !== 12) hours24 = hours + 12;
+                        if (ampm === 'AM' && hours === 12) hours24 = 0;
+                    }
+
+                    // Subtract 20 minutes for arrival time
+                    let arrivalMins = minutes - 20;
+                    let arrivalHours = hours24;
+                    if (arrivalMins < 0) {
+                        arrivalMins += 60;
+                        arrivalHours -= 1;
+                    }
+
+                    // Extract province and get timezone (now that we have the address)
+                    const province = extractProvinceFromAddress(woData.address);
+                    const isDST = isDaylightSavingTime(new Date());
+                    const tzAbbr = province ? getTimezoneAbbr(province, isDST) : 'EST';
+
+                    // Set arrival time in 24-hour format with timezone
+                    document.getElementById('arrivalTime').value = 
+                        arrivalHours.toString().padStart(2, '0') + ':' + 
+                        arrivalMins.toString().padStart(2, '0') + ' ' + tzAbbr;
+                }
+
+                // Parse date - try all common formats
+                let day, month, year;
+                const monthNames = {
+                    'jan': 'January', 'feb': 'February', 'mar': 'March', 'apr': 'April',
+                    'may': 'May', 'jun': 'June', 'jul': 'July', 'aug': 'August',
+                    'sep': 'September', 'oct': 'October', 'nov': 'November', 'dec': 'December'
+                };
+                const monthNamesList = ['January', 'February', 'March', 'April', 'May', 'June', 
+                                       'July', 'August', 'September', 'October', 'November', 'December'];
+                
+                // Format 1: MM/DD/YYYY or MM/DD/YY (handle both 4-digit and 2-digit years)
+                let dateCheckMatch = dateTimeStr.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+                if (dateCheckMatch) {
+                    month = parseInt(dateCheckMatch[1]);
+                    day = dateCheckMatch[2];
+                    year = dateCheckMatch[3];
+                    // Convert 2-digit year to 4-digit
+                    if (year.length === 2) {
+                        year = (parseInt(year) < 50 ? 2000 : 1900) + parseInt(year);
+                    }
+                } else {
+                    // Format 2: MM-DD-YYYY or MM-DD-YY
+                    dateCheckMatch = dateTimeStr.match(/(\d{1,2})-(\d{1,2})-(\d{2,4})/);
+                    if (dateCheckMatch) {
+                        month = parseInt(dateCheckMatch[1]);
+                        day = dateCheckMatch[2];
+                        year = dateCheckMatch[3];
+                        // Convert 2-digit year to 4-digit
+                        if (year.length === 2) {
+                            year = (parseInt(year) < 50 ? 2000 : 1900) + parseInt(year);
+                        }
+                    } else {
+                        // Format 3: YYYY-MM-DD
+                        dateCheckMatch = dateTimeStr.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
+                        if (dateCheckMatch) {
+                            year = dateCheckMatch[1];
+                            month = parseInt(dateCheckMatch[2]);
+                            day = dateCheckMatch[3];
+                        } else {
+                            // Format 4: Month abbreviation + Day (e.g., Jan 15)
+                            dateCheckMatch = dateTimeStr.match(/(January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)\s+(\d{1,2})/i);
+                            if (dateCheckMatch) {
+                                const monthStr = dateCheckMatch[1].toLowerCase();
+                                day = dateCheckMatch[2];
+                                year = new Date().getFullYear();
+                                month = monthStr.length <= 3 ? 
+                                    (Object.keys(monthNames).indexOf(monthStr) + 1) :
+                                    (monthNamesList.indexOf(monthNames[monthStr] || monthStr.charAt(0).toUpperCase() + monthStr.slice(1)) + 1);
+                            }
+                        }
+                    }
+                }
+
+                // Set the date fields if we found a valid date
+                if (day && month && year) {
+                    const fullMonth = monthNamesList[month - 1];
+                    document.getElementById('execDate').value = fullMonth + ' ' + day + ', ' + year;
+                    
+                    // Calculate day of week
+                    const dateObj = new Date(year, month - 1, parseInt(day));
+                    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                    document.getElementById('dayOfWeek').value = days[dateObj.getDay()];
+                    
+                    // Use unified time parser
+                    const timeParsed = parseTimeString(dateTimeStr);
+                    if (timeParsed && timeParsed.hours !== null) {
+                        const shortYear = year.toString().slice(-2);
+                        const monthPad = month.toString().padStart(2, '0');
+                        const dayPad = day.toString().padStart(2, '0');
+                        
+                        // Convert to 24-hour format
+                        let hours24 = timeParsed.hours;
+                        if (timeParsed.ampm) {
+                            if (timeParsed.ampm === 'PM' && timeParsed.hours !== 12) hours24 = timeParsed.hours + 12;
+                            if (timeParsed.ampm === 'AM' && timeParsed.hours === 12) hours24 = 0;
+                        }
+                        
+                        const province = extractProvinceFromAddress(woData.address);
+                        const isDST = isDaylightSavingTime(new Date(year, month - 1, parseInt(day)));
+                        const tzAbbr = province ? getTimezoneAbbr(province, isDST) : 'EST';
+                        
+                        // Format required datetime
+                        woData.requiredDateTime = `${monthPad}/${dayPad}/${shortYear} - ${hours24.toString().padStart(2, '0')}:${timeParsed.minutes.toString().padStart(2, '0')} ${tzAbbr}`;
+                        
+                        // Calculate arrival time (20 minutes before)
+                        let arrivalHours = hours24;
+                        let arrivalMinutes = timeParsed.minutes - 20;
+                        if (arrivalMinutes < 0) {
+                            arrivalMinutes += 60;
+                            arrivalHours -= 1;
+                        }
+                        if (arrivalHours < 0) {
+                            arrivalHours += 24;
+                        }
+                        
+                        document.getElementById('arrivalTime').value = `${arrivalHours.toString().padStart(2, '0')}:${arrivalMinutes.toString().padStart(2, '0')} ${tzAbbr}`;
+                    }
+                }
+            }
+
+            return woData.woNumber || woData.wotNumber || woData.incNumber;
+        }
+
+
+        function parseWorkOrder() {
+            const text = document.getElementById('pasteInput').value;
+
+            if (!text.trim()) {
+                alert('Please paste work order text first.');
+                return;
+            }
+
+            // Track if date/time was successfully parsed
+            let dateTimeParsed = false;
+
+            // Try BFG Dispatch Form parser first
+            const bfgSuccess = parseBFGDispatchForm(text);
+            if (bfgSuccess) {
+                dateTimeParsed = true;
+            }
+
+            // If BFG parser didn't work, continue with old logic
+            if (!bfgSuccess) {
+                // Extract fields
+                woData.woNumber = extractField(text, /WO\d+/i) || '';
+                woData.wotNumber = extractField(text, /WOT\d+/i) || '';
+                woData.incNumber = extractField(text, /INC\d+/i) || '';
+                
+                // Extract issuer (from "From:" field or ticket creator) - look for first person mentioned in To: line
+                const toMatch = text.match(/^To:\s*([^\n]+(?:\n\s+[^\n]+)*)/im);
+                if (toMatch) {
+                    const toField = toMatch[1];
+                    // Extract first person's name (email format: Name Name <email>)
+                    const nameMatch = toField.match(/([A-Za-z\s]+)\s*</);
+                    if (nameMatch) {
+                        woData.issuer = nameMatch[1].trim();
+                    }
+                }
+
+                
+                // Extract requestor (look for contact info at bottom or in email body)
+                const contactMatch = text.match(/^([A-Za-z]+)\s+(\d{3}-\d{3}-\d{4})/m);
+                if (contactMatch) {
+                    woData.requestor = contactMatch[1];
+                } else {
+                    // Fallback: try From field
+                    const fromMatch = text.match(/^From:\s*([A-Za-z\s]+)\s*</im);
+                    if (fromMatch) {
+                        woData.requestor = fromMatch[1].trim();
+                    }
+                }
+                
+                // Extract location code (CTR format)
+                woData.locationCode = extractField(text, /Location:\s*\n?\s*(CTR\d+)/i) || '';
+                
+                // Extract full location/address - look for the pattern after Location code but before Short Description
+                // The address is on separate lines after "Location:         CTR0158"
+                const locMatch = text.match(/Location:\s+CTR\d+\s*\n([\s\S]*?)(?=\n\s*Short Description|$)/i);
+                if (locMatch) {
+                    // Get all lines after location code, trim each, and join with comma
+                    const addressLines = locMatch[1]
+                        .split('\n')
+                        .map(l => l.trim())
+                        .filter(l => l && l.length > 0 && !l.match(/^(Customer|BFG|Work Order|Priority|Assignment|Service|Service Time|Location|Short)/i))
+                        .filter(l => l !== ','); // Remove empty comma lines
+                    
+                    // Clean address: remove double commas, extra spaces
+                    woData.address = addressLines.join(', ').replace(/,\s*,/g, ',').trim();
+                }
+                
+                // Store clean location for CSV (without HTML/emoji)
+                woData.cleanLocation = woData.locationCode + (woData.address ? ' - ' + woData.address : '');
+                
+                // Extract short description
+                woData.shortDesc = extractField(text, /Short Description:\s*\n?\s*(.+?)(?=\n\n|$)/is) || '';
+
+                // Try to extract disk slot from description
+                const slotMatch = woData.shortDesc.match(/(\d+:\d+:\d+)/);
+                if (slotMatch) {
+                    document.getElementById('diskSlot').value = slotMatch[1];
+                }
+
+                // Extract SYSTEM INFORMATION fields
+                // Required Date/Time of Service: 10:30pm Jan 15
+                const dateTimeMatch = text.match(/Required Date\/Time of Service\s*:\s*(.+?)(?=\n|$)/i);
+                if (dateTimeMatch) {
+                    dateTimeParsed = true;
+                    const dateTimeStr = dateTimeMatch[1].trim();
+                    woData.requiredDateTime = dateTimeStr;
+
+                    // Comprehensive date/time parsing covering all formats
+                    const timeMatch = dateTimeStr.match(/(\d{1,2})(?::(\d{2}))?\s*(?:am|pm)?/i);
+                    if (timeMatch) {
+                        // Extract hours, minutes, and AM/PM
+                        const fullTimeStr = timeMatch[0].trim();
+                        const ampmMatch = fullTimeStr.match(/(am|pm)/i);
+                        const ampm = ampmMatch ? ampmMatch[1].toUpperCase() : 'PM';
+                        
+                    let hours = parseInt(timeMatch[1]);
+                    let minutes = timeMatch[2] ? parseInt(timeMatch[2]) : 0;
+                    
+                    // Subtract 20 minutes for arrival time
+                    minutes -= 20;
+                    if (minutes < 0) {
+                        minutes += 60;
+                        hours -= 1;
+                    }
+                    
+                    // Handle 12-hour format
+                    if (hours <= 0) {
+                        hours += 12;
+                        // Switch AM/PM when crossing midnight
+                        const newAmpm = ampm === 'AM' ? 'PM' : 'AM';
+                        document.getElementById('arrivalTime').value = hours + ':' + minutes.toString().padStart(2, '0') + ' ' + newAmpm + ' EST';
+                    } else if (hours > 12) {
+                        hours -= 12;
+                        document.getElementById('arrivalTime').value = hours + ':' + minutes.toString().padStart(2, '0') + ' ' + ampm + ' EST';
+                    } else {
+                        document.getElementById('arrivalTime').value = hours + ':' + minutes.toString().padStart(2, '0') + ' ' + ampm + ' EST';
+                    }
+                    // Don't auto-calculate EOD - let user enter it manually or from email
+                }
+
+                // Parse date - try all common formats
+                let day, month, year;
+                const monthNames = {
+                    'jan': 'January', 'feb': 'February', 'mar': 'March', 'apr': 'April',
+                    'may': 'May', 'jun': 'June', 'jul': 'July', 'aug': 'August',
+                    'sep': 'September', 'oct': 'October', 'nov': 'November', 'dec': 'December'
+                };
+                const monthNamesList = ['January', 'February', 'March', 'April', 'May', 'June', 
+                                       'July', 'August', 'September', 'October', 'November', 'December'];
+                
+                // Format 1: MM/DD/YYYY (e.g., 01/15/2026)
+                let dateMatch = dateTimeStr.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+                if (dateMatch) {
+                    month = parseInt(dateMatch[1]);
+                    day = dateMatch[2];
+                    year = dateMatch[3];
+                } else {
+                    // Format 2: MM-DD-YYYY (e.g., 01-15-2026)
+                    dateMatch = dateTimeStr.match(/(\d{1,2})-(\d{1,2})-(\d{4})/);
+                    if (dateMatch) {
+                        month = parseInt(dateMatch[1]);
+                        day = dateMatch[2];
+                        year = dateMatch[3];
+                    } else {
+                        // Format 3: YYYY-MM-DD (e.g., 2026-01-15)
+                        dateMatch = dateTimeStr.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
+                        if (dateMatch) {
+                            year = dateMatch[1];
+                            month = parseInt(dateMatch[2]);
+                            day = dateMatch[3];
+                        } else {
+                            // Format 4: Month abbreviation + Day (e.g., Jan 15, January 15)
+                            dateMatch = dateTimeStr.match(/(January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)\s+(\d{1,2})/i);
+                            if (dateMatch) {
+                                const monthStr = dateMatch[1].toLowerCase();
+                                day = dateMatch[2];
+                                year = new Date().getFullYear();
+                                month = monthStr.length <= 3 ? 
+                                    (Object.keys(monthNames).indexOf(monthStr) + 1) :
+                                    (monthNamesList.indexOf(monthNames[monthStr] || monthStr.charAt(0).toUpperCase() + monthStr.slice(1)) + 1);
+                            } else {
+                                // Format 5: Day Month Year (e.g., 15 January 2026, 15 Jan 2026)
+                                dateMatch = dateTimeStr.match(/(\d{1,2})\s+(January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)\s+(\d{4})/i);
+                                if (dateMatch) {
+                                    day = dateMatch[1];
+                                    const monthStr = dateMatch[2].toLowerCase();
+                                    year = dateMatch[3];
+                                    month = monthStr.length <= 3 ? 
+                                        (Object.keys(monthNames).indexOf(monthStr) + 1) :
+                                        (monthNamesList.indexOf(monthNames[monthStr] || monthStr.charAt(0).toUpperCase() + monthStr.slice(1)) + 1);
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // Set the date fields if we found a valid date
+                if (day && month && year) {
+                    const fullMonth = monthNamesList[month - 1];
+                    document.getElementById('execDate').value = fullMonth + ' ' + day + ', ' + year;
+                    
+                    // Calculate day of week
+                    const dateObj = new Date(year, month - 1, parseInt(day));
+                    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                    document.getElementById('dayOfWeek').value = days[dateObj.getDay()];
+                    
+                    // Use unified time parser
+                    const timeParsed = parseTimeString(dateTimeStr);
+                    if (timeParsed && timeParsed.hours !== null) {
+                        const shortYear = year.toString().slice(-2);
+                        const monthPad = month.toString().padStart(2, '0');
+                        const dayPad = day.toString().padStart(2, '0');
+                        
+                        // Convert to 24-hour format
+                        let hours24 = timeParsed.hours;
+                        if (timeParsed.ampm) {
+                            if (timeParsed.ampm === 'PM' && timeParsed.hours !== 12) hours24 = timeParsed.hours + 12;
+                            if (timeParsed.ampm === 'AM' && timeParsed.hours === 12) hours24 = 0;
+                        }
+                        
+                        const province = extractProvinceFromAddress(woData.address);
+                        const isDST = isDaylightSavingTime(new Date(year, month - 1, parseInt(day)));
+                        const tzAbbr = province ? getTimezoneAbbr(province, isDST) : 'EST';
+                        
+                        // Format required datetime
+                        woData.requiredDateTime = `${monthPad}/${dayPad}/${shortYear} - ${hours24.toString().padStart(2, '0')}:${timeParsed.minutes.toString().padStart(2, '0')} ${tzAbbr}`;
+                        
+                        // Calculate arrival time (20 minutes before)
+                        let arrivalHours = hours24;
+                        let arrivalMinutes = timeParsed.minutes - 20;
+                        if (arrivalMinutes < 0) {
+                            arrivalMinutes += 60;
+                            arrivalHours -= 1;
+                        }
+                        if (arrivalHours < 0) {
+                            arrivalHours += 24;
+                        }
+                        
+                        document.getElementById('arrivalTime').value = `${arrivalHours.toString().padStart(2, '0')}:${arrivalMinutes.toString().padStart(2, '0')} ${tzAbbr}`;
+                    }
+                }
+            }
+
+            // During the day or after store closure: EOF
+            const eofMatch = text.match(/During the day or after store closure\s*:\s*(.+?)(?=\n|$)/i);
+            if (eofMatch) {
+                woData.eofStatus = eofMatch[1].trim();
+            }
+
+            // Extract contact info with multiple format support
+            // Formats to match:
+            // - "Contact name Alex 289-314-1579"
+            // - "Alex 289-314-1579" (standalone at end of email)
+            // - "please call Alex 289-314-1579 first"
+            // - "call Alex 289-314-1579"
+            
+            let contactName = '';
+            let contactPhone = '';
+            
+            // Try "Contact name" format first
+            let contactNameMatch = text.match(/Contact\s+name\s+([A-Za-z\s]+?)\s+([\d\-\(\)\s]+?)(?:\n|$)/i);
+            if (contactNameMatch) {
+                contactName = contactNameMatch[1].trim();
+                contactPhone = contactNameMatch[2].trim();
+            } 
+            
+            // Fallback to "call" format
+            if (!contactName) {
+                const callMatch = text.match(/(?:please\s+)?call\s+([A-Za-z\s]+?)\s+([\d\-\(\)\s\+]+?)(?:\s+first|\s*\.|$)/i);
+                if (callMatch) {
+                    contactName = callMatch[1].trim();
+                    contactPhone = callMatch[2].trim();
+                }
+            }
+            
+            // Fallback to simple "Name PhoneNumber" pattern at end of text or after key info
+            if (!contactName) {
+                const simpleMatch = text.match(/(?:WOT\d+\s+)?([A-Z][a-z]+)\s+([\d\-\(\)\+\s]{10,})(?:\n|$)/m);
+                if (simpleMatch && simpleMatch[2]) {
+                    const potentialName = simpleMatch[1].trim();
+                    const potentialPhone = simpleMatch[2].trim();
+                    // Make sure it's actually a phone number (has mostly digits)
+                    if (potentialPhone.replace(/\D/g, '').length >= 10) {
+                        contactName = potentialName;
+                        contactPhone = potentialPhone;
+                    }
+                }
+            }
+            
+            // Final fallback: look for any line with a name and 10+ digits
+            if (!contactName) {
+                const lines = text.split('\n');
+                for (let line of lines) {
+                    const match = line.match(/^([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+([\d\-\(\)\+\s]{10,})$/);
+                    if (match) {
+                        const digits = match[2].replace(/\D/g, '');
+                        if (digits.length >= 10) {
+                            contactName = match[1].trim();
+                            contactPhone = match[2].trim();
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            if (contactName && contactPhone) {
+                document.getElementById('contactName').value = contactName;
+                document.getElementById('contactPhone').value = contactPhone;
+                woData.contactName = contactName;
+                woData.contactPhone = contactPhone;
+            }
+            } // End if (!bfgSuccess)
+
+            // Update display
+            document.getElementById('dispWOT').textContent = woData.wotNumber || '-';
+            document.getElementById('dispWO').textContent = woData.woNumber || '-';
+            document.getElementById('dispINC').textContent = woData.incNumber || '-';
+            document.getElementById('dispStoreNumber').textContent = woData.locationCode || '-';
+            
+            // Create location display as clickable link
+            const locDisplay = document.getElementById('dispLoc');
+            if (woData.address) {
+                const fullLocation = 'Canadian Tire - ' + woData.address;
+                const mapsUrl = `https://www.google.com/maps/search/${encodeURIComponent(woData.address)}`;
+                locDisplay.innerHTML = `<a href="${mapsUrl}" target="_blank">${fullLocation}</a>`;
+            } else if (woData.locationCode) {
+                locDisplay.textContent = woData.locationCode;
+            } else {
+                locDisplay.textContent = '-';
+            }
+            
+            document.getElementById('dispDesc').textContent = woData.shortDesc || '-';
+            document.getElementById('dispDateTime').textContent = woData.requiredDateTime || '-';
+            document.getElementById('dispEOF').textContent = woData.eofStatus || '-';
+            document.getElementById('dispContact').textContent = (woData.contactName && woData.contactPhone) ? woData.contactName + ' ' + woData.contactPhone : '-';
+
+            // If date/time not found, set today's date (but not if already parsed)
+            if (!dateTimeParsed) {
+                const today = new Date();
+                const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+                document.getElementById('dayOfWeek').value = days[today.getDay()];
+                document.getElementById('execDate').value = months[today.getMonth()] + ' ' + today.getDate() + ', ' + today.getFullYear();
+            }
+
+            
+            // Fetch contact info from API if arrival time and date are available
+            const arrivalTimeField = document.getElementById('arrivalTime').value;
+            const execDateField = document.getElementById('execDate').value;
+            
+            if (arrivalTimeField && execDateField) {
+                fetchContactFromAPI(arrivalTimeField, execDateField).then(contactInfo => {
+                    if (contactInfo) {
+                        document.getElementById('contactName').value = contactInfo.name;
+                        document.getElementById('contactPhone').value = contactInfo.phone;
+                        woData.contactName = contactInfo.name;
+                        woData.contactPhone = contactInfo.phone;
+                        document.getElementById('dispContact').textContent = contactInfo.name + ' ' + contactInfo.phone;
+                    }
+                });
+            }
+        }
+
+
+        // Fetch contact info from API based on arrival time and date
+        async function fetchContactFromAPI(arrivalTime, execDate) {
+            try {
+                // Convert execDate format "January 15, 2026" to "2026-01-15"
+                const dateMatch = execDate.match(/([A-Za-z]+)\s+(\d+),\s+(\d{4})/);
+                if (!dateMatch) return null;
+
+                const monthNames = {
+                    'january': '01', 'february': '02', 'march': '03', 'april': '04',
+                    'may': '05', 'june': '06', 'july': '07', 'august': '08',
+                    'september': '09', 'october': '10', 'november': '11', 'december': '12'
+                };
+                
+                const month = monthNames[dateMatch[1].toLowerCase()];
+                const day = dateMatch[2].padStart(2, '0');
+                const year = dateMatch[3];
+                const apiDate = `${year}-${month}-${day}`;
+
+                // Convert arrival time to 24-hour format "HH:MM" for API
+                // Handles both: "08:45 PM EST" (12-hour) and "20:45 EST" (24-hour)
+                let apiTime = '';
+                
+                // Try 12-hour format first (HH:MM AM/PM)
+                let timeMatch = arrivalTime.match(/(\d{1,2})(?::(\d{2}))?\s*(AM|PM)/i);
+                if (timeMatch) {
+                    let hours = parseInt(timeMatch[1]);
+                    const mins = timeMatch[2] ? timeMatch[2] : '00';
+                    const period = timeMatch[3].toUpperCase();
+
+                    // Convert to 24-hour format
+                    if (period === 'PM' && hours !== 12) hours += 12;
+                    if (period === 'AM' && hours === 12) hours = 0;
+
+                    apiTime = `${hours.toString().padStart(2, '0')}:${mins}`;
+                } else {
+                    // Try 24-hour format (HH:MM with optional timezone)
+                    timeMatch = arrivalTime.match(/(\d{1,2})(?::(\d{2}))?/);
+                    if (timeMatch) {
+                        const hours = timeMatch[1].padStart(2, '0');
+                        const mins = timeMatch[2] ? timeMatch[2] : '00';
+                        apiTime = `${hours}:${mins}`;
+                    } else {
+                        return null;
+                    }
+                }
+
+
+                // Call API with CORS proxy workaround
+                const apiUrl = `https://sippbx01.itwizard.ca/custom_apps/infonode.php?date=${apiDate}&time=${apiTime}`;
+                
+                // Try with CORS proxy
+                const corsProxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(apiUrl)}`;
+                const response = await fetch(corsProxyUrl);
+                
+                if (!response.ok) throw new Error('API request failed');
+                
+                const proxyData = await response.json();
+                const data = JSON.parse(proxyData.contents);
+                
+                if (data && data.assigned_person) {
+                    return {
+                        name: data.assigned_person.full_name || '',
+                        phone: data.assigned_person.phone_number || ''
+                    };
+                }
+                return null;
+            } catch (error) {
+                console.log('API fetch error (will use manual entry):', error);
+                return null;
+            }
+        }
+
+        function calculateEOD(timeStr) {
+            // Add 15 minutes to arrival time for EOD
+            const match = timeStr.match(/(\d{1,2})(?::(\d{2}))?\s*(?:am|pm)?/i);
+            if (match) {
+                let hours = parseInt(match[1]);
+                let mins = (match[2] ? parseInt(match[2]) : 0) + 15;
+                const ampm = match[3] ? match[3].toUpperCase() : 'PM';
+
+                if (mins >= 60) {
+                    mins -= 60;
+                    hours += 1;
+                }
+                if (hours > 12) hours = hours - 12;
+                if (hours === 0) hours = 12;
+
+                return hours + ':' + mins.toString().padStart(2, '0') + ' ' + ampm + ' EST';
+            }
+            return '9:00 PM EST';
+        }
+
+        function extractField(text, pattern) {
+            const match = text.match(pattern);
+            return match ? (match[1] || match[0]).trim() : null;
+        }
+
+        function generateOutputs() {
+            const partDesc = document.getElementById('partDesc').value || '[PART DESCRIPTION]';
+            const partCode = document.getElementById('partCode').value || '[PART CODE]';
+            const diskSlot = document.getElementById('diskSlot').value || '';
+            const contactName = document.getElementById('contactName').value || '[CONTACT NAME]';
+            const contactPhone = document.getElementById('contactPhone').value || '[PHONE]';
+            const dayOfWeek = document.getElementById('dayOfWeek').value;
+            const execDate = document.getElementById('execDate').value || '[DATE]';
+            const arrivalTime = document.getElementById('arrivalTime').value || '[TIME]';
+            const eodTime = document.getElementById('eodTime').value || '[EOD TIME]';
+            const whenWord = document.getElementById('whenWord').value;
+
+            const fullPart = partDesc + ' - ' + partCode;
+            const locationCode = woData.locationCode || '[LOCATION]';
+            const shortDesc = woData.shortDesc || '[DESCRIPTION]';
+            
+            // Check if this is a hard drive replacement (contains keywords like "disk", "drive", "storage")
+            const isHardDrive = partDesc.toLowerCase().includes('disk') || 
+                               partDesc.toLowerCase().includes('drive') || 
+                               partDesc.toLowerCase().includes('storage') ||
+                               partCode.toLowerCase().includes('-hd-');
+            
+            // Check if the email mentions "predicted to fail"
+            const pasteInput = document.getElementById('pasteInput').value;
+            const isPredictedToFail = pasteInput.toLowerCase().includes('predicted to fail');
+            
+            // Build the slot line only if it's a hard drive AND slot is specified
+            let slotLine = '';
+            if (isHardDrive && diskSlot) {
+                if (isPredictedToFail) {
+                    slotLine = `Hard disk is predicted to fail in slot ${diskSlot} and it needs to be replaced, in Dell VRTX server at this location.`;
+                } else {
+                    slotLine = `Hard disk in slot ${diskSlot} needs to be replaced, in Dell VRTX server at this location.`;
+                }
+            } else {
+                slotLine = `${partDesc} needs to be replaced in Dell VRTX server at this location.`;
+            }
+            
+            // Helper function to add ordinal suffix (1st, 2nd, 3rd, 4th, etc.)
+            function getOrdinalSuffix(day) {
+                const j = day % 10;
+                const k = day % 100;
+                if (j === 1 && k !== 11) return 'st';
+                if (j === 2 && k !== 12) return 'nd';
+                if (j === 3 && k !== 13) return 'rd';
+                return 'th';
+            }
+            
+            // Extract day from execDate (e.g., "January 15, 2026" -> 15)
+            const dayMatch = execDate.match(/(\d+)/);
+            const dayNumber = dayMatch ? dayMatch[1] : '';
+            const dayOrdinal = dayNumber ? dayNumber + getOrdinalSuffix(parseInt(dayNumber)) : '';
+            
+            // Format date as "Thursday, January 15th"
+            const formattedDate = `${dayOfWeek}, ${execDate.replace(/\d+/, dayOrdinal)}`;
+            
+            // Build the dispatch email body with proper formatting
+            let dispatchBody = `Hi Dispatch team,
+
+`;
+            
+            // For hard drives, check if predicted to fail or just needs replacement
+            if (isHardDrive && diskSlot) {
+                if (isPredictedToFail) {
+                    dispatchBody += `Hard disk is predicted to fail in slot ${diskSlot} and it needs to be replaced, in Dell VRTX server at this location.`;
+                } else {
+                    dispatchBody += `Hard disk in slot ${diskSlot} needs to be replaced, in Dell VRTX server at this location.`;
+                }
+            } else {
+                dispatchBody += `${partDesc} needs to be replaced in Dell VRTX server at this location.`;
+            }
+            
+            dispatchBody += `
+
+• Our tech needs to bring ${fullPart}.
+
+• Our tech needs to be onsite, ${formattedDate}, at local store ${arrivalTime}, task to be performed after EOD time (${eodTime}) as per CTC team.
+
+• Once onsite tech reaches the site, please call ${contactName} ${contactPhone} first. Do not perform any work without contacting ${contactName}.
+
+
+Please note the following internal work note and Performed Work Note (Customer visible) has been added to the ticket:
+
+PART INFORMATION
+Dell Part Description: ${fullPart}
+Special instructions for BFG Technician: Once onsite tech reaches the site, please call ${contactName} ${contactPhone} first . Do not perform any work without contacting ${contactName}.
+
+Thank you,`;
+            
+            // OUTPUT 1 - DO FIRST IN SERVICENOW (URGENT - SLA)
+            const output1 = `PART INFORMATION
+
+Dell Part Description: ${fullPart}
+Special instructions for BFG Technician: Once onsite tech reaches the site, please call ${contactName} ${contactPhone} first . Do not perform any work without contacting ${contactName}.`;
+            
+            // OUTPUT 2 - Dispatch Email
+            const output2 = `TO: BFG Dispatch Center <dispatcher@bfg.ca>
+Cc: 'CTC Server Tickets' <CTCServerTickets@bfg.ca>; Allan Harriott <allan.harriott@bfg.ca>; Amit Sooknanan <amit.sooknanan@bfg.ca>; Ana Agapi <Ana.Agapi@bfg.ca>; Gee Lee <Gee.Lee@bfg.ca>
+
+
+${dispatchBody}`;
+
+            // OUTPUT 3 - UPDATE SERVICENOW WITH DISPATCH EMAIL internal notes
+            const output3 = `${dispatchBody}`;
+
+            // OUTPUT 4 - Ask for Tech Info
+            const output4 = `Hi Dispatch team,
+
+Can you please provide contact number for on-site tech, and ensure that once onsite tech reaches the site, ${formattedDate}, at local store time ${arrivalTime}, to please contact ${contactName} ${contactPhone} first.
+
+Thank you`;
+
+            // OUTPUT 5 - BFG Tracker Ticket Summary
+            // Determine replacement type for final note
+            const replacementType = isHardDrive ? 'hard disk' : partDesc.split(' ')[0].toLowerCase();
+            
+            const output5 = `BFG Tracker Ticket Subject Line: ${woData.wotNumber} - ${woData.woNumber} - ${woData.locationCode} // ${woData.incNumber} - ${woData.shortDesc}
+
+---
+
+1. Confirmed description of ticket includes store information, and store and CT support contact information.
+
+2. Added the following internal work note and Performed Work Note (Customer visible) has been added to the ticket:
+
+PART INFORMATION
+Dell Part Description: ${fullPart}
+Special instructions for BFG Technician: Once onsite tech reaches the site, please call ${contactName} ${contactPhone} first. Do not perform any work without contacting ${contactName}.
+
+3. Added the following internal work note to ticket:
+${woData.shortDesc}
+Our tech needs to bring ${fullPart}
+Our tech needs to be onsite ${whenWord}, ${execDate} at store local time of ${arrivalTime} after EOD.
+Once onsite tech reaches the site, please call ${contactName} ${contactPhone} first. Do not perform any work without contacting ${contactName}.
+
+4. Sent the following email to Dispatch team:
+Hi Dispatch Team,
+
+${woData.shortDesc}
+Our tech needs to bring ${fullPart}
+Our tech needs to be onsite ${whenWord}, ${execDate} at store local time of ${arrivalTime} after EOD.
+Once onsite tech reaches the site, please call ${contactName} ${contactPhone} first. Do not perform any work without contacting ${contactName}.
+
+Please note the following internal work note and Performed Work Note (Customer visible) has been added to the ticket:
+
+PART INFORMATION
+Dell Part Description: ${fullPart}
+Special instructions for BFG Technician: Once onsite tech reaches the site, please call ${contactName} ${contactPhone} first. Do not perform any work without contacting ${contactName}.
+
+5. Added the following Performed Work Note (Customer visible) to the ticket
+We will visit the site to replace ${partDesc} on ${formattedDate}, at local store ${arrivalTime}.`;
+
+            // OUTPUT 6 - Update ServiceNow with Tech Store Visit (Customer Visible Only)
+            const output6 = `We will visit the site to replace ${partDesc} on ${formattedDate}, at local store ${arrivalTime}.`;
+
+            // Set outputs
+            document.getElementById('output1').textContent = output1;
+            document.getElementById('output2').textContent = output2;
+            document.getElementById('output3').textContent = output3;
+            document.getElementById('output4').textContent = output4;
+            document.getElementById('output5').textContent = output5;
+            document.getElementById('output6').textContent = output6;
+        }
+
+        function copyOutput(outputId) {
+            const text = document.getElementById(outputId).textContent;
+
+            navigator.clipboard.writeText(text).then(() => {
+                showNotification();
+            }).catch(() => {
+                const textArea = document.createElement('textarea');
+                textArea.value = text;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                showNotification();
+            });
+        }
+
+        function exportToCSV() {
+            // Collect all data from form fields
+            const partDesc = document.getElementById('partDesc').value || '';
+            const partCode = document.getElementById('partCode').value || '';
+            const contactName = document.getElementById('contactName').value || '';
+
+            // Get data from extracted info (PARSE WORK ORDER results)
+            const wotNumber = document.getElementById('dispWOT').textContent;
+            const woNumber = document.getElementById('dispWO').textContent;
+            const incNumber = document.getElementById('dispINC').textContent;
+            const shortDesc = document.getElementById('dispDesc').textContent;
+            
+            // ProjeQtor CSV Format (comma-separated):
+            // name,ticket type,project,external reference,issuer,requestor,description,status,resolution,responsible,store number,Part 1 Number
+            
+            // Helper function to clean field: remove commas, replace with space if needed
+            const cleanField = (text) => {
+                if (!text) return '';
+                return text.replace(/,/g, ' ').replace(/\s+/g, ' ').trim();
+            };
+            
+            // Helper function to get first part before comma
+            const getFirstPart = (text) => {
+                if (!text) return '';
+                return text.split(',')[0].trim();
+            };
+            
+            // 1. NAME: WOT# - WO# CTR#/INC# {Part Description (first part only)}
+            const locationCode = woData.locationCode || 'CTR0000';
+            const partDescFirstPart = getFirstPart(partDesc); // Take only first part before comma
+            const ticketName = cleanField(`${wotNumber} - ${woNumber} ${locationCode}/${incNumber} ${partDescFirstPart}`);
+            
+            // 2. TICKET TYPE: Auto-detect from part description
+            let ticketType = 'Hard Drive';
+            const searchText = (partDesc + ' ' + shortDesc).toLowerCase();
+            
+            if (searchText.includes('cmos') && searchText.includes('battery')) {
+                ticketType = 'CMOS Battery';
+            } else if (searchText.includes('perc') && searchText.includes('battery')) {
+                ticketType = 'PERC Battery';
+            } else if (searchText.includes('perc') && (searchText.includes('controller') || searchText.includes('raid'))) {
+                ticketType = 'PERC Controller';
+            } else if (searchText.includes('backplane')) {
+                ticketType = 'Backplane';
+            } else if (searchText.includes('blower') || searchText.includes('fan')) {
+                ticketType = 'Blower';
+            } else if (searchText.includes('chassis') && searchText.includes('management') && searchText.includes('lcd')) {
+                ticketType = 'Chassis Management Controller LCD panel';
+            } else if (searchText.includes('chassis') && searchText.includes('management')) {
+                ticketType = 'Chassis Management Controller';
+            } else if (searchText.includes('chassis')) {
+                ticketType = 'Complete Chassis';
+            } else if (searchText.includes('motherboard') || searchText.includes('system board')) {
+                ticketType = 'Motherboard';
+            } else if (searchText.includes('hard disk') || searchText.includes('hard drive') || searchText.includes('ssd')) {
+                ticketType = 'Hard Drive';
+            } else if (searchText.includes('memory') || searchText.includes('ddr') || searchText.includes('rdimm')) {
+                ticketType = 'Memory';
+            } else if (searchText.includes('sd module') || searchText.includes('sd card')) {
+                ticketType = 'SD Module';
+            } else if (searchText.includes('io module')) {
+                ticketType = 'IO module';
+            } else if (searchText.includes('m640') || searchText.includes('node')) {
+                ticketType = 'M640 Node';
+            } else if (searchText.includes('power supply') || searchText.includes('psu')) {
+                ticketType = 'Power Supply';
+            }
+            
+            // 3. PROJECT: Fixed value
+            const project = 'CTC Servers Support';
+            
+            // 4. EXTERNAL REFERENCE: INC number only
+            const externalRef = incNumber;
+            
+            // 5. ISSUER: From parsed email TO field (clean commas)
+            const issuer = cleanField(woData.issuer || contactName || '');
+            
+            // 6. REQUESTOR: Fixed value (clean commas)
+            const requestor = cleanField('Mihai Posea');
+            
+            // 7. DESCRIPTION: Only the short description (clean commas)
+            const description = cleanField(shortDesc || '');
+            
+            // 8. STATUS: Set to "recorded"
+            const status = 'recorded';
+            
+            // 9. RESOLUTION: Empty
+            const resolution = '';
+            
+            // 10. RESPONSIBLE: Empty
+            const responsible = '';
+            
+            // 11. STORE NUMBER: Use CTR code from parsed location
+            const storeNumber = cleanField(locationCode || '');
+            
+            // 12. PART 1 NUMBER: Use Part Code from form (clean commas)
+            const partNumber = cleanField(partCode || '');
+            
+            // Build CSV line (comma-separated format) - NO escaping needed since we removed commas
+            const csvLine = [
+                ticketName,
+                ticketType,
+                project,
+                externalRef,
+                issuer,
+                requestor,
+                description,
+                status,
+                resolution,
+                responsible,
+                storeNumber,
+                partNumber
+            ].join(',');
+
+            // Add header row (comma-separated)
+            const csvHeader = 'name,ticket type,project,external reference,issuer,requestor,description,status,resolution,responsible,store number,Part 1 Number';
+            const csvContent = csvHeader + '\n' + csvLine;
+
+            // Create blob and download
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            const fileName = `ProjeQtor_${woNumber || 'ticket'}_${new Date().toISOString().split('T')[0]}.csv`;
+            
+            link.setAttribute('href', url);
+            link.setAttribute('download', fileName);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            // Show notification
+            const notification = document.getElementById('copyNotification');
+            const originalText = notification.textContent;
+            notification.textContent = `CSV exported as ${fileName}`;
+            notification.style.display = 'block';
+            setTimeout(() => {
+                notification.textContent = originalText;
+                notification.style.display = 'none';
+            }, 2000);
+        }
+
+        function showNotification() {
+            const notification = document.getElementById('copyNotification');
+            notification.style.display = 'block';
+            setTimeout(() => {
+                notification.style.display = 'none';
+            }, 1500);
+        }
+
+        function clearAll() {
+            document.getElementById('pasteInput').value = '';
+            document.getElementById('partDesc').value = '';
+            document.getElementById('partCode').value = '';
+            document.getElementById('diskSlot').value = '';
+            document.getElementById('contactName').value = '';
+            document.getElementById('contactPhone').value = '';
+            document.getElementById('arrivalTime').value = '';
+            document.getElementById('eodTime').value = '';
+
+            document.getElementById('dispWOT').textContent = '-';
+            document.getElementById('dispWO').textContent = '-';
+            document.getElementById('dispINC').textContent = '-';
+            document.getElementById('dispStoreNumber').textContent = '-';
+            document.getElementById('dispLoc').textContent = '-';
+            document.getElementById('dispDesc').textContent = '-';
+            document.getElementById('dispDateTime').textContent = '-';
+            document.getElementById('dispEOF').textContent = '-';
+            document.getElementById('dispContact').textContent = '-';
+
+            document.getElementById('output1').textContent = 'Generate outputs to see content...';
+            document.getElementById('output2').textContent = 'Generate outputs to see content...';
+            document.getElementById('output3').textContent = 'Generate outputs to see content...';
+            document.getElementById('output4').textContent = 'Generate outputs to see content...';
+            document.getElementById('output5').textContent = 'Generate outputs to see content...';
+            document.getElementById('output6').textContent = 'Generate outputs to see content...';
+
+            woData = { woNumber: '', wotNumber: '', incNumber: '', location: '', locationCode: '', shortDesc: '', address: '', issuer: '', requestor: '', cleanLocation: '' };
+        }
+
+        // Set default day on load
+        window.onload = function() {
+            const today = new Date();
+            const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            document.getElementById('dayOfWeek').value = days[today.getDay()];
+            initializePartsDatabase();
+        };
+    </script>
+</body>
+</html>
+
+
