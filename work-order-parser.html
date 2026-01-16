@@ -623,7 +623,7 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
             <div class="output-panel">
                 <div class="output-header">
                     <h3>6. UPDATE SERVICE NOW WITH TECH STORE VISIT (CUSTOMER VISIBLE ONLY)</h3>
-                    <button class="btn btn-copy" onclick="copyOutput('output6Generated')">COPY</button>
+                    <button class="btn btn-copy" onclick="copyOutput('output6')">COPY</button>
                 </div>
                 <div class="output-box" id="output6">Generate outputs to see content...</div>
             </div>
@@ -1286,13 +1286,10 @@ Special instructions for BFG Technician: Once onsite tech reaches the site, plea
 We will visit the site to replace ${partDesc} on ${formattedDate}, at local store ${arrivalTime}.`;
 
             // OUTPUT 6 - Update ServiceNow with Tech Store Visit (Customer Visible Only)
-            const output6Full = `Once you have the confirmation from the dispatch with the tech info update service now (customer visible):
+            const output6 = `Once you have the confirmation from the dispatch with the tech info update service now (customer visible):
 
 
 We will visit the site to replace ${partDesc} on ${formattedDate}, at local store ${arrivalTime}.`;
-            
-            // For copy button, only the generated message (without the generic instruction)
-            const output6Generated = `We will visit the site to replace ${partDesc} on ${formattedDate}, at local store ${arrivalTime}.`;
 
             // Set outputs
             document.getElementById('output1').textContent = output1;
@@ -1300,8 +1297,7 @@ We will visit the site to replace ${partDesc} on ${formattedDate}, at local stor
             document.getElementById('output3').textContent = output3;
             document.getElementById('output4').textContent = output4;
             document.getElementById('output5').textContent = output5;
-            document.getElementById('output6').textContent = output6Full;
-            document.getElementById('output6Generated').textContent = output6Generated;
+            document.getElementById('output6').textContent = output6;
         }
 
         function copyOutput(outputId) {
