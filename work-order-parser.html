@@ -1432,7 +1432,7 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
             const locDisplay = document.getElementById('dispLoc');
             if (woData.address) {
                 const fullLocation = 'Canadian Tire - ' + woData.address;
-                const mapsUrl = `https://www.google.com/maps/search/${encodeURIComponent(woData.address)}`;
+                const mapsUrl = `https://www.google.com/maps/search/${encodeURIComponent('Canadian Tire ' + woData.address)}`;
                 locDisplay.innerHTML = `<a href="${mapsUrl}" target="_blank">${fullLocation}</a>`;
             } else if (woData.locationCode) {
                 locDisplay.textContent = woData.locationCode;
