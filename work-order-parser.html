@@ -482,11 +482,11 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
                     <div><strong>WOT#:</strong> <span id="dispWOT">-</span></div>
                     <div><strong>WO#:</strong> <span id="dispWO">-</span></div>
                     <div><strong>INC#:</strong> <span id="dispINC">-</span></div>
-                    <div><strong>Store Number (CTR):</strong> <span id="dispStoreNumber">-</span></div>
+                    <div><strong>Store Number:</strong> <span id="dispStoreNumber">-</span></div>
                     <div><strong>Location:</strong> <span id="dispLoc">-</span></div>
+                    <div><strong>Province:</strong> <span id="dispProvince">-</span></div>
                     <div><strong>Description:</strong> <span id="dispDesc">-</span></div>
                     <div><strong>Required Date/Time:</strong> <span id="dispDateTime">-</span></div>
-                    <div><strong>Day/After Closure:</strong> <span id="dispEOF">-</span></div>
                     <div><strong>Contact:</strong> <span id="dispContact">-</span></div>
                 </div>
 
@@ -669,10 +669,167 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
             locationCode: '',
             shortDesc: '',
             address: '',
+            province: '',
             issuer: '',
             requestor: '',
             cleanLocation: '' // Store clean location for CSV export
         };
+
+        // Extract province from address - handles abbreviations and full names anywhere
+        function extractProvinceFromAddress(address) {
+            const provinceMap = {
+                'ON': 'Ontario', 'QC': 'Quebec', 'BC': 'British Columbia',
+                'AB': 'Alberta', 'MB': 'Manitoba', 'SK': 'Saskatchewan',
+                'NS': 'Nova Scotia', 'NB': 'New Brunswick', 'NL': 'Newfoundland and Labrador',
+                'PE': 'Prince Edward Island', 'NT': 'Northwest Territories',
+                'YT': 'Yukon', 'NU': 'Nunavut'
+            };
+            
+            const fullNameMap = {
+                'Ontario': 'Ontario', 'Quebec': 'Quebec', 'British Columbia': 'British Columbia',
+                'Alberta': 'Alberta', 'Manitoba': 'Manitoba', 'Saskatchewan': 'Saskatchewan',
+                'Nova Scotia': 'Nova Scotia', 'New Brunswick': 'New Brunswick', 
+                'Newfoundland and Labrador': 'Newfoundland and Labrador',
+                'Prince Edward Island': 'Prince Edward Island', 'Northwest Territories': 'Northwest Territories',
+                'Yukon': 'Yukon', 'Nunavut': 'Nunavut'
+            };
+            
+            // Try 1: Find province code followed by postal code pattern (e.g., "QC J6A 5N4")
+            let match = address.match(/\b([A-Z]{2})\s+[A-Z]\d[A-Z]\s*\d[A-Z]\d/i);
+            if (match) {
+                const code = match[1].toUpperCase();
+                return provinceMap[code] || code;
+            }
+            
+            // Try 2: Find province code anywhere in address (word boundary)
+            match = address.match(/\b([A-Z]{2})\b/);
+            if (match) {
+                const code = match[1].toUpperCase();
+                if (provinceMap[code]) {
+                    return provinceMap[code];
+                }
+            }
+            
+            // Try 3: Find full province name anywhere in address (case insensitive)
+            for (const [fullName, province] of Object.entries(fullNameMap)) {
+                const regex = new RegExp(`\\b${fullName}\\b`, 'i');
+                if (regex.test(address)) {
+                    return province;
+                }
+            }
+            
+            return null;
+        }
+
+        // Get timezone info for province
+        function getTimezoneInfo(province) {
+            const timezones = {
+                'Ontario': { zone: 'EST/EDT', offset: -5, dstOffset: -4 },
+                'Quebec': { zone: 'EST/EDT', offset: -5, dstOffset: -4 },
+                'Manitoba': { zone: 'CST/CDT', offset: -6, dstOffset: -5 },
+                'Saskatchewan': { zone: 'CST', offset: -6, dstOffset: -6 },
+                'Alberta': { zone: 'MST/MDT', offset: -7, dstOffset: -6 },
+                'British Columbia': { zone: 'PST/PDT', offset: -8, dstOffset: -7 },
+                'Nova Scotia': { zone: 'AST/ADT', offset: -4, dstOffset: -3 },
+                'New Brunswick': { zone: 'AST/ADT', offset: -4, dstOffset: -3 },
+                'Newfoundland and Labrador': { zone: 'NST/NDT', offset: -3.5, dstOffset: -2.5 },
+                'Prince Edward Island': { zone: 'AST/ADT', offset: -4, dstOffset: -3 },
+                'Northwest Territories': { zone: 'MST', offset: -7, dstOffset: -7 },
+                'Yukon': { zone: 'PST', offset: -8, dstOffset: -8 },
+                'Nunavut': { zone: 'CST/CDT', offset: -6, dstOffset: -5 }
+            };
+            return timezones[province] || { zone: 'EST/EDT', offset: -5, dstOffset: -4 };
+        }
+
+        // Check if date is in daylight saving time
+        function isDaylightSavingTime(date) {
+            const year = date.getFullYear();
+            const march = new Date(year, 2, 1);
+            const november = new Date(year, 10, 1);
+            const secondSundayMarch = new Date(year, 2, 1 + (7 - march.getDay()) % 7 + 7);
+            const firstSundayNovember = new Date(year, 10, 1 + (7 - november.getDay()) % 7);
+            return date >= secondSundayMarch && date < firstSundayNovember;
+        }
+
+        // Get timezone abbreviation
+        function getTimezoneAbbr(province, isDST) {
+            const abbrs = {
+                'Ontario': isDST ? 'EDT' : 'EST',
+                'Quebec': isDST ? 'EDT' : 'EST',
+                'Manitoba': isDST ? 'CDT' : 'CST',
+                'Saskatchewan': 'CST',
+                'Alberta': isDST ? 'MDT' : 'MST',
+                'British Columbia': isDST ? 'PDT' : 'PST',
+                'Nova Scotia': isDST ? 'ADT' : 'AST',
+                'New Brunswick': isDST ? 'ADT' : 'AST',
+                'Newfoundland and Labrador': isDST ? 'NDT' : 'NST',
+                'Prince Edward Island': isDST ? 'ADT' : 'AST',
+                'Northwest Territories': 'MST',
+                'Yukon': 'PST',
+                'Nunavut': isDST ? 'CDT' : 'CST'
+            };
+            return abbrs[province] || (isDST ? 'EDT' : 'EST');
+        }
+
+        // Unified time string parser - handles multiple formats
+        function parseTimeString(dateTimeStr) {
+            if (!dateTimeStr) return null;
+            
+            const result = {
+                month: null,
+                day: null,
+                year: null,
+                hours: null,
+                minutes: 0,
+                ampm: ''
+            };
+            
+            // Format 1: MM/DD/YY - Hpm or MM/DD/YY - HH:MMpm (BFG format)
+            let match = dateTimeStr.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})\s*-\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i);
+            if (match) {
+                result.month = parseInt(match[1]);
+                result.day = parseInt(match[2]);
+                result.year = match[3];
+                result.hours = parseInt(match[4]);
+                result.minutes = match[5] ? parseInt(match[5]) : 0;
+                result.ampm = match[6] ? match[6].toUpperCase() : '';
+                
+                // Convert 2-digit year to 4-digit
+                if (result.year.length === 2) {
+                    result.year = (parseInt(result.year) < 50 ? 2000 : 1900) + parseInt(result.year);
+                }
+                return result;
+            }
+            
+            // Format 2: DayName MM/DD/YYYY at HH:MMam/pm (Regular format)
+            // e.g., "Thursday 01/18/2026 at 09:05 PM"
+            match = dateTimeStr.match(/(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)?\s*(\d{1,2})\/(\d{1,2})\/(\d{4})\s+at\s+(\d{1,2}):(\d{2})\s*(am|pm)?/i);
+            if (match) {
+                result.month = parseInt(match[1]);
+                result.day = parseInt(match[2]);
+                result.year = parseInt(match[3]);
+                result.hours = parseInt(match[4]);
+                result.minutes = parseInt(match[5]);
+                result.ampm = match[6] ? match[6].toUpperCase() : '';
+                return result;
+            }
+            
+            // Format 3: MM-DD-YYYY - HH:MM
+            match = dateTimeStr.match(/(\d{1,2})-(\d{1,2})-(\d{2,4})\s*-\s*(\d{1,2}):(\d{2})/);
+            if (match) {
+                result.month = parseInt(match[1]);
+                result.day = parseInt(match[2]);
+                result.year = match[3];
+                result.hours = parseInt(match[4]);
+                result.minutes = parseInt(match[5]);
+                if (result.year.length === 2) {
+                    result.year = (parseInt(result.year) < 50 ? 2000 : 1900) + parseInt(result.year);
+                }
+                return result;
+            }
+            
+            return null;
+        }
 
         // Initialize parts table on load
         function initializePartsDatabase() {
@@ -764,6 +921,219 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
         }
 
 
+        // Parse BFG Dispatch Form format
+        function parseBFGDispatchForm(text) {
+            // Check if this is a BFG Dispatch Form
+            if (!text.includes('BFG Dispatch Form')) {
+                return false;
+            }
+
+            // Extract WO/WOT/INC numbers
+            const woMatch = text.match(/WO\d+/i);
+            const wotMatch = text.match(/WOT\d+/i);
+            const incMatch = text.match(/INC\d+/i);
+
+            if (!woMatch && !wotMatch && !incMatch) {
+                return false;
+            }
+
+            woData.woNumber = woMatch ? woMatch[0] : '';
+            woData.wotNumber = wotMatch ? wotMatch[0] : '';
+            woData.incNumber = incMatch ? incMatch[0] : '';
+
+            // Extract short description from "Short Description:" field
+            const shortDescMatch = text.match(/Short Description:\s*\n?\s*(.+?)(?=\n|$)/i);
+            if (shortDescMatch) {
+                woData.shortDesc = shortDescMatch[1].trim();
+            }
+
+            // Extract FGL number from "Work Order Type: BF - Canadian Tire FGL 330"
+            const fglMatch = text.match(/Work Order Type:.*?FGL\s*(\d+)/i);
+            if (fglMatch) {
+                woData.locationCode = 'FGL' + fglMatch[1];
+            } else {
+                // Try alternative FGL format
+                const fglAltMatch = text.match(/FGL\s*(\d+)/i);
+                if (fglAltMatch) {
+                    woData.locationCode = 'FGL' + fglAltMatch[1];
+                }
+            }
+
+            // Extract store location (address lines + city) from "STORE LOCATION" section FIRST
+            // so we can determine timezone for date/time parsing
+            // Handle multi-line address by using [\s\S] to match across newlines
+            const addressLine1Match = text.match(/Address Line 1\s*\n([\s\S]+?)(?=\nAddress Line 2|\nCity)/i);
+            const addressLine2Match = text.match(/Address Line 2\s*\n([\s\S]+?)(?=\nCity)/i);
+            const cityMatch = text.match(/City \/ Province \/ Postal Code\s*\n\s*(.+?)(?=\n\s*STORE CONTACT|$)/i);
+
+            const addressParts = [];
+            if (addressLine1Match) {
+                const lines = addressLine1Match[1]
+                    .split('\n')
+                    .map(l => l.trim())
+                    .filter(l => l && l.length > 0);
+                addressParts.push(...lines);
+            }
+            if (addressLine2Match) {
+                const lines = addressLine2Match[1]
+                    .split('\n')
+                    .map(l => l.trim())
+                    .filter(l => l && l.length > 0);
+                addressParts.push(...lines);
+            }
+            if (cityMatch && cityMatch[1].trim()) {
+                addressParts.push(cityMatch[1].trim());
+            }
+
+            woData.address = addressParts.join(', ');
+
+            // Store clean location for CSV
+            woData.cleanLocation = woData.locationCode + (woData.address ? ' - ' + woData.address : '');
+
+            // Extract date/time from "Required Date/Time of Service?" and convert to 24-hour format
+            const dateTimeMatch = text.match(/Required Date\/Time of Service\?\s*\n?\s*(.+?)(?=\n|During|$)/i);
+            if (dateTimeMatch) {
+                const dateTimeStr = dateTimeMatch[1].trim();
+                console.log('[DEBUG BFG] Found dateTimeStr:', dateTimeStr);
+
+                // Parse time - handle both "6pm" and "6:00pm" formats
+                const timeMatch = dateTimeStr.match(/(\d{1,2})(?::(\d{2}))?\s*(?:am|pm)?/i);
+                if (timeMatch) {
+                    let hours = parseInt(timeMatch[1]);
+                    const minutes = timeMatch[2] ? parseInt(timeMatch[2]) : 0;
+                    const ampmMatch = dateTimeStr.match(/(am|pm)/i);
+                    const ampm = ampmMatch ? ampmMatch[1].toUpperCase() : '';
+
+                    // Convert to 24-hour if necessary
+                    let hours24 = hours;
+                    if (ampm) {
+                        if (ampm === 'PM' && hours !== 12) hours24 = hours + 12;
+                        if (ampm === 'AM' && hours === 12) hours24 = 0;
+                    }
+
+                    // Subtract 20 minutes for arrival time
+                    let arrivalMins = minutes - 20;
+                    let arrivalHours = hours24;
+                    if (arrivalMins < 0) {
+                        arrivalMins += 60;
+                        arrivalHours -= 1;
+                    }
+
+                    // Extract province and get timezone (now that we have the address)
+                    const province = extractProvinceFromAddress(woData.address);
+                    const isDST = isDaylightSavingTime(new Date());
+                    const tzAbbr = province ? getTimezoneAbbr(province, isDST) : 'EST';
+
+                    // Set arrival time in 24-hour format with timezone
+                    document.getElementById('arrivalTime').value = 
+                        arrivalHours.toString().padStart(2, '0') + ':' + 
+                        arrivalMins.toString().padStart(2, '0') + ' ' + tzAbbr;
+                }
+
+                // Parse date - try all common formats
+                let day, month, year;
+                const monthNames = {
+                    'jan': 'January', 'feb': 'February', 'mar': 'March', 'apr': 'April',
+                    'may': 'May', 'jun': 'June', 'jul': 'July', 'aug': 'August',
+                    'sep': 'September', 'oct': 'October', 'nov': 'November', 'dec': 'December'
+                };
+                const monthNamesList = ['January', 'February', 'March', 'April', 'May', 'June', 
+                                       'July', 'August', 'September', 'October', 'November', 'December'];
+                
+                // Format 1: MM/DD/YYYY or MM/DD/YY (handle both 4-digit and 2-digit years)
+                let dateCheckMatch = dateTimeStr.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+                if (dateCheckMatch) {
+                    month = parseInt(dateCheckMatch[1]);
+                    day = dateCheckMatch[2];
+                    year = dateCheckMatch[3];
+                    // Convert 2-digit year to 4-digit
+                    if (year.length === 2) {
+                        year = (parseInt(year) < 50 ? 2000 : 1900) + parseInt(year);
+                    }
+                } else {
+                    // Format 2: MM-DD-YYYY or MM-DD-YY
+                    dateCheckMatch = dateTimeStr.match(/(\d{1,2})-(\d{1,2})-(\d{2,4})/);
+                    if (dateCheckMatch) {
+                        month = parseInt(dateCheckMatch[1]);
+                        day = dateCheckMatch[2];
+                        year = dateCheckMatch[3];
+                        // Convert 2-digit year to 4-digit
+                        if (year.length === 2) {
+                            year = (parseInt(year) < 50 ? 2000 : 1900) + parseInt(year);
+                        }
+                    } else {
+                        // Format 3: YYYY-MM-DD
+                        dateCheckMatch = dateTimeStr.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
+                        if (dateCheckMatch) {
+                            year = dateCheckMatch[1];
+                            month = parseInt(dateCheckMatch[2]);
+                            day = dateCheckMatch[3];
+                        } else {
+                            // Format 4: Month abbreviation + Day (e.g., Jan 15)
+                            dateCheckMatch = dateTimeStr.match(/(January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)\s+(\d{1,2})/i);
+                            if (dateCheckMatch) {
+                                const monthStr = dateCheckMatch[1].toLowerCase();
+                                day = dateCheckMatch[2];
+                                year = new Date().getFullYear();
+                                month = monthStr.length <= 3 ? 
+                                    (Object.keys(monthNames).indexOf(monthStr) + 1) :
+                                    (monthNamesList.indexOf(monthNames[monthStr] || monthStr.charAt(0).toUpperCase() + monthStr.slice(1)) + 1);
+                            }
+                        }
+                    }
+                }
+
+                // Set the date fields if we found a valid date
+                if (day && month && year) {
+                    const fullMonth = monthNamesList[month - 1];
+                    document.getElementById('execDate').value = fullMonth + ' ' + day + ', ' + year;
+                    
+                    // Calculate day of week
+                    const dateObj = new Date(year, month - 1, parseInt(day));
+                    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                    document.getElementById('dayOfWeek').value = days[dateObj.getDay()];
+                    
+                    // Use unified time parser
+                    const timeParsed = parseTimeString(dateTimeStr);
+                    if (timeParsed && timeParsed.hours !== null) {
+                        const shortYear = year.toString().slice(-2);
+                        const monthPad = month.toString().padStart(2, '0');
+                        const dayPad = day.toString().padStart(2, '0');
+                        
+                        // Convert to 24-hour format
+                        let hours24 = timeParsed.hours;
+                        if (timeParsed.ampm) {
+                            if (timeParsed.ampm === 'PM' && timeParsed.hours !== 12) hours24 = timeParsed.hours + 12;
+                            if (timeParsed.ampm === 'AM' && timeParsed.hours === 12) hours24 = 0;
+                        }
+                        
+                        const province = extractProvinceFromAddress(woData.address);
+                        const isDST = isDaylightSavingTime(new Date(year, month - 1, parseInt(day)));
+                        const tzAbbr = province ? getTimezoneAbbr(province, isDST) : 'EST';
+                        
+                        // Format required datetime
+                        woData.requiredDateTime = `${monthPad}/${dayPad}/${shortYear} - ${hours24.toString().padStart(2, '0')}:${timeParsed.minutes.toString().padStart(2, '0')} ${tzAbbr}`;
+                        
+                        // Calculate arrival time (20 minutes before)
+                        let arrivalHours = hours24;
+                        let arrivalMinutes = timeParsed.minutes - 20;
+                        if (arrivalMinutes < 0) {
+                            arrivalMinutes += 60;
+                            arrivalHours -= 1;
+                        }
+                        if (arrivalHours < 0) {
+                            arrivalHours += 24;
+                        }
+                        
+                        document.getElementById('arrivalTime').value = `${arrivalHours.toString().padStart(2, '0')}:${arrivalMinutes.toString().padStart(2, '0')} ${tzAbbr}`;
+                    }
+                }
+            }
+
+            return woData.woNumber || woData.wotNumber || woData.incNumber;
+        }
+
+
         function parseWorkOrder() {
             const text = document.getElementById('pasteInput').value;
 
@@ -772,81 +1142,94 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
                 return;
             }
 
-            // Extract fields
-            woData.woNumber = extractField(text, /WO\d+/i) || '';
-            woData.wotNumber = extractField(text, /WOT\d+/i) || '';
-            woData.incNumber = extractField(text, /INC\d+/i) || '';
-            
-            // Extract issuer (from "From:" field or ticket creator) - look for first person mentioned in To: line
-            const toMatch = text.match(/^To:\s*([^\n]+(?:\n\s+[^\n]+)*)/im);
-            if (toMatch) {
-                const toField = toMatch[1];
-                // Extract first person's name (email format: Name Name <email>)
-                const nameMatch = toField.match(/([A-Za-z\s]+)\s*</);
-                if (nameMatch) {
-                    woData.issuer = nameMatch[1].trim();
-                }
+            // Track if date/time was successfully parsed
+            let dateTimeParsed = false;
+
+            // Try BFG Dispatch Form parser first
+            const bfgSuccess = parseBFGDispatchForm(text);
+            if (bfgSuccess) {
+                dateTimeParsed = true;
             }
-            
-            // Extract requestor (look for contact info at bottom or in email body)
-            const contactMatch = text.match(/^([A-Za-z]+)\s+(\d{3}-\d{3}-\d{4})/m);
-            if (contactMatch) {
-                woData.requestor = contactMatch[1];
-            } else {
-                // Fallback: try From field
-                const fromMatch = text.match(/^From:\s*([A-Za-z\s]+)\s*</im);
-                if (fromMatch) {
-                    woData.requestor = fromMatch[1].trim();
-                }
-            }
-            
-            // Extract location code
-            woData.locationCode = extractField(text, /Location:\s*\n?\s*(CTR\d+)/i) || '';
-            
-            // Extract full location/address - look for the pattern after Location code but before Short Description
-            // The address is on separate lines after "Location:         CTR0158"
-            const locMatch = text.match(/Location:\s+CTR\d+\s*\n([\s\S]*?)(?=\n\s*Short Description|$)/i);
-            if (locMatch) {
-                // Get all lines after location code, trim each, and join with comma
-                const addressLines = locMatch[1]
-                    .split('\n')
-                    .map(l => l.trim())
-                    .filter(l => l && l.length > 0 && !l.match(/^(Customer|BFG|Work Order|Priority|Assignment|Service|Service Time|Location|Short)/i))
-                    .filter(l => l !== ','); // Remove empty comma lines
+
+            // If BFG parser didn't work, continue with old logic
+            if (!bfgSuccess) {
+                // Extract fields
+                woData.woNumber = extractField(text, /WO\d+/i) || '';
+                woData.wotNumber = extractField(text, /WOT\d+/i) || '';
+                woData.incNumber = extractField(text, /INC\d+/i) || '';
                 
-                // Clean address: remove double commas, extra spaces
-                woData.address = addressLines.join(', ').replace(/,\s*,/g, ',').trim();
-            }
-            
-            // Store clean location for CSV (without HTML/emoji)
-            woData.cleanLocation = woData.locationCode + (woData.address ? ' - ' + woData.address : '');
-            
-            // Extract short description
-            woData.shortDesc = extractField(text, /Short Description:\s*\n?\s*(.+?)(?=\n\n|$)/is) || '';
+                // Extract issuer (from "From:" field or ticket creator) - look for first person mentioned in To: line
+                const toMatch = text.match(/^To:\s*([^\n]+(?:\n\s+[^\n]+)*)/im);
+                if (toMatch) {
+                    const toField = toMatch[1];
+                    // Extract first person's name (email format: Name Name <email>)
+                    const nameMatch = toField.match(/([A-Za-z\s]+)\s*</);
+                    if (nameMatch) {
+                        woData.issuer = nameMatch[1].trim();
+                    }
+                }
 
-            // Try to extract disk slot from description
-            const slotMatch = woData.shortDesc.match(/(\d+:\d+:\d+)/);
-            if (slotMatch) {
-                document.getElementById('diskSlot').value = slotMatch[1];
-            }
-
-            // Extract SYSTEM INFORMATION fields
-            // Required Date/Time of Service: 10:30pm Jan 15
-            const dateTimeMatch = text.match(/Required Date\/Time of Service\s*:\s*(.+?)(?=\n|$)/i);
-            if (dateTimeMatch) {
-                const dateTimeStr = dateTimeMatch[1].trim();
-                woData.requiredDateTime = dateTimeStr;
-
-                // Comprehensive date/time parsing covering all formats
-                const timeMatch = dateTimeStr.match(/(\d{1,2}):(\d{2})\s*(?:am|pm)?/i);
-                if (timeMatch) {
-                    // Extract hours, minutes, and AM/PM
-                    const fullTimeStr = timeMatch[0].trim();
-                    const ampmMatch = fullTimeStr.match(/(am|pm)/i);
-                    const ampm = ampmMatch ? ampmMatch[1].toUpperCase() : 'PM';
+                
+                // Extract requestor (look for contact info at bottom or in email body)
+                const contactMatch = text.match(/^([A-Za-z]+)\s+(\d{3}-\d{3}-\d{4})/m);
+                if (contactMatch) {
+                    woData.requestor = contactMatch[1];
+                } else {
+                    // Fallback: try From field
+                    const fromMatch = text.match(/^From:\s*([A-Za-z\s]+)\s*</im);
+                    if (fromMatch) {
+                        woData.requestor = fromMatch[1].trim();
+                    }
+                }
+                
+                // Extract location code (CTR format)
+                woData.locationCode = extractField(text, /Location:\s*\n?\s*(CTR\d+)/i) || '';
+                
+                // Extract full location/address - look for the pattern after Location code but before Short Description
+                // The address is on separate lines after "Location:         CTR0158"
+                const locMatch = text.match(/Location:\s+CTR\d+\s*\n([\s\S]*?)(?=\n\s*Short Description|$)/i);
+                if (locMatch) {
+                    // Get all lines after location code, trim each, and join with comma
+                    const addressLines = locMatch[1]
+                        .split('\n')
+                        .map(l => l.trim())
+                        .filter(l => l && l.length > 0 && !l.match(/^(Customer|BFG|Work Order|Priority|Assignment|Service|Service Time|Location|Short)/i))
+                        .filter(l => l !== ','); // Remove empty comma lines
                     
+                    // Clean address: remove double commas, extra spaces
+                    woData.address = addressLines.join(', ').replace(/,\s*,/g, ',').trim();
+                }
+                
+                // Store clean location for CSV (without HTML/emoji)
+                woData.cleanLocation = woData.locationCode + (woData.address ? ' - ' + woData.address : '');
+                
+                // Extract short description
+                woData.shortDesc = extractField(text, /Short Description:\s*\n?\s*(.+?)(?=\n\n|$)/is) || '';
+
+                // Try to extract disk slot from description
+                const slotMatch = woData.shortDesc.match(/(\d+:\d+:\d+)/);
+                if (slotMatch) {
+                    document.getElementById('diskSlot').value = slotMatch[1];
+                }
+
+                // Extract SYSTEM INFORMATION fields
+                // Required Date/Time of Service: 10:30pm Jan 15
+                const dateTimeMatch = text.match(/Required Date\/Time of Service\s*:\s*(.+?)(?=\n|$)/i);
+                if (dateTimeMatch) {
+                    dateTimeParsed = true;
+                    const dateTimeStr = dateTimeMatch[1].trim();
+                    woData.requiredDateTime = dateTimeStr;
+
+                    // Comprehensive date/time parsing covering all formats
+                    const timeMatch = dateTimeStr.match(/(\d{1,2})(?::(\d{2}))?\s*(?:am|pm)?/i);
+                    if (timeMatch) {
+                        // Extract hours, minutes, and AM/PM
+                        const fullTimeStr = timeMatch[0].trim();
+                        const ampmMatch = fullTimeStr.match(/(am|pm)/i);
+                        const ampm = ampmMatch ? ampmMatch[1].toUpperCase() : 'PM';
+                        
                     let hours = parseInt(timeMatch[1]);
-                    let minutes = parseInt(timeMatch[2]);
+                    let minutes = timeMatch[2] ? parseInt(timeMatch[2]) : 0;
                     
                     // Subtract 20 minutes for arrival time
                     minutes -= 20;
@@ -935,14 +1318,44 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
                     const dateObj = new Date(year, month - 1, parseInt(day));
                     const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
                     document.getElementById('dayOfWeek').value = days[dateObj.getDay()];
+                    
+                    // Use unified time parser
+                    const timeParsed = parseTimeString(dateTimeStr);
+                    if (timeParsed && timeParsed.hours !== null) {
+                        const shortYear = year.toString().slice(-2);
+                        const monthPad = month.toString().padStart(2, '0');
+                        const dayPad = day.toString().padStart(2, '0');
+                        
+                        // Convert to 24-hour format
+                        let hours24 = timeParsed.hours;
+                        if (timeParsed.ampm) {
+                            if (timeParsed.ampm === 'PM' && timeParsed.hours !== 12) hours24 = timeParsed.hours + 12;
+                            if (timeParsed.ampm === 'AM' && timeParsed.hours === 12) hours24 = 0;
+                        }
+                        
+                        const province = extractProvinceFromAddress(woData.address);
+                        const isDST = isDaylightSavingTime(new Date(year, month - 1, parseInt(day)));
+                        const tzAbbr = province ? getTimezoneAbbr(province, isDST) : 'EST';
+                        
+                        // Format required datetime
+                        woData.requiredDateTime = `${monthPad}/${dayPad}/${shortYear} - ${hours24.toString().padStart(2, '0')}:${timeParsed.minutes.toString().padStart(2, '0')} ${tzAbbr}`;
+                        
+                        // Calculate arrival time (20 minutes before)
+                        let arrivalHours = hours24;
+                        let arrivalMinutes = timeParsed.minutes - 20;
+                        if (arrivalMinutes < 0) {
+                            arrivalMinutes += 60;
+                            arrivalHours -= 1;
+                        }
+                        if (arrivalHours < 0) {
+                            arrivalHours += 24;
+                        }
+                        
+                        document.getElementById('arrivalTime').value = `${arrivalHours.toString().padStart(2, '0')}:${arrivalMinutes.toString().padStart(2, '0')} ${tzAbbr}`;
+                    }
                 }
             }
 
-            // During the day or after store closure: EOF
-            const eofMatch = text.match(/During the day or after store closure\s*:\s*(.+?)(?=\n|$)/i);
-            if (eofMatch) {
-                woData.eofStatus = eofMatch[1].trim();
-            }
 
             // Extract contact info with multiple format support
             // Formats to match:
@@ -1006,6 +1419,7 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
                 woData.contactName = contactName;
                 woData.contactPhone = contactPhone;
             }
+            } // End if (!bfgSuccess)
 
             // Update display
             document.getElementById('dispWOT').textContent = woData.wotNumber || '-';
@@ -1013,31 +1427,39 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
             document.getElementById('dispINC').textContent = woData.incNumber || '-';
             document.getElementById('dispStoreNumber').textContent = woData.locationCode || '-';
             
-            // Create location display with Google Maps link
+            // Create location display as clickable link
             const locDisplay = document.getElementById('dispLoc');
             if (woData.address) {
-                const fullLocation = woData.locationCode + ' - ' + woData.address;
-                const mapsUrl = 'https://www.google.com/maps/search/' + encodeURIComponent(woData.address);
-                locDisplay.innerHTML = '<a href="' + mapsUrl + '" target="_blank" style="color: #007bff; text-decoration: underline; cursor: pointer;">' + fullLocation + ' 🗺️</a>';
+                const fullLocation = 'Canadian Tire - ' + woData.address;
+                const mapsUrl = `https://www.google.com/maps/search/${encodeURIComponent(woData.address)}`;
+                locDisplay.innerHTML = `<a href="${mapsUrl}" target="_blank">${fullLocation}</a>`;
             } else if (woData.locationCode) {
                 locDisplay.textContent = woData.locationCode;
             } else {
                 locDisplay.textContent = '-';
             }
             
+            // Extract and display province
+            if (woData.address) {
+                woData.province = extractProvinceFromAddress(woData.address) || '-';
+            } else {
+                woData.province = '-';
+            }
+            document.getElementById('dispProvince').textContent = woData.province || '-';
+            
             document.getElementById('dispDesc').textContent = woData.shortDesc || '-';
             document.getElementById('dispDateTime').textContent = woData.requiredDateTime || '-';
-            document.getElementById('dispEOF').textContent = woData.eofStatus || '-';
             document.getElementById('dispContact').textContent = (woData.contactName && woData.contactPhone) ? woData.contactName + ' ' + woData.contactPhone : '-';
 
-            // If date/time not found in SYSTEM INFO, set today's date
-            if (!dateTimeMatch) {
+            // If date/time not found, set today's date (but not if already parsed)
+            if (!dateTimeParsed) {
                 const today = new Date();
                 const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
                 const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
                 document.getElementById('dayOfWeek').value = days[today.getDay()];
                 document.getElementById('execDate').value = months[today.getMonth()] + ' ' + today.getDate() + ', ' + today.getFullYear();
             }
+
             
             // Fetch contact info from API if arrival time and date are available
             const arrivalTimeField = document.getElementById('arrivalTime').value;
@@ -1075,19 +1497,34 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
                 const year = dateMatch[3];
                 const apiDate = `${year}-${month}-${day}`;
 
-                // Convert arrival time "08:45 PM EST" to 24-hour format "08:45"
-                const timeMatch = arrivalTime.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
-                if (!timeMatch) return null;
+                // Convert arrival time to 24-hour format "HH:MM" for API
+                // Handles both: "08:45 PM EST" (12-hour) and "20:45 EST" (24-hour)
+                let apiTime = '';
+                
+                // Try 12-hour format first (HH:MM AM/PM)
+                let timeMatch = arrivalTime.match(/(\d{1,2})(?::(\d{2}))?\s*(AM|PM)/i);
+                if (timeMatch) {
+                    let hours = parseInt(timeMatch[1]);
+                    const mins = timeMatch[2] ? timeMatch[2] : '00';
+                    const period = timeMatch[3].toUpperCase();
 
-                let hours = parseInt(timeMatch[1]);
-                const mins = timeMatch[2];
-                const period = timeMatch[3].toUpperCase();
+                    // Convert to 24-hour format
+                    if (period === 'PM' && hours !== 12) hours += 12;
+                    if (period === 'AM' && hours === 12) hours = 0;
 
-                // Convert to 24-hour format
-                if (period === 'PM' && hours !== 12) hours += 12;
-                if (period === 'AM' && hours === 12) hours = 0;
+                    apiTime = `${hours.toString().padStart(2, '0')}:${mins}`;
+                } else {
+                    // Try 24-hour format (HH:MM with optional timezone)
+                    timeMatch = arrivalTime.match(/(\d{1,2})(?::(\d{2}))?/);
+                    if (timeMatch) {
+                        const hours = timeMatch[1].padStart(2, '0');
+                        const mins = timeMatch[2] ? timeMatch[2] : '00';
+                        apiTime = `${hours}:${mins}`;
+                    } else {
+                        return null;
+                    }
+                }
 
-                const apiTime = `${hours.toString().padStart(2, '0')}:${mins}`;
 
                 // Call API with CORS proxy workaround
                 const apiUrl = `https://sippbx01.itwizard.ca/custom_apps/infonode.php?date=${apiDate}&time=${apiTime}`;
@@ -1116,10 +1553,10 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
 
         function calculateEOD(timeStr) {
             // Add 15 minutes to arrival time for EOD
-            const match = timeStr.match(/(\d{1,2}):(\d{2})\s*(am|pm)?/i);
+            const match = timeStr.match(/(\d{1,2})(?::(\d{2}))?\s*(?:am|pm)?/i);
             if (match) {
                 let hours = parseInt(match[1]);
-                let mins = parseInt(match[2]) + 15;
+                let mins = (match[2] ? parseInt(match[2]) : 0) + 15;
                 const ampm = match[3] ? match[3].toUpperCase() : 'PM';
 
                 if (mins >= 60) {
@@ -1483,9 +1920,9 @@ We will visit the site to replace ${partDesc} on ${formattedDate}, at local stor
             document.getElementById('dispINC').textContent = '-';
             document.getElementById('dispStoreNumber').textContent = '-';
             document.getElementById('dispLoc').textContent = '-';
+            document.getElementById('dispProvince').textContent = '-';
             document.getElementById('dispDesc').textContent = '-';
             document.getElementById('dispDateTime').textContent = '-';
-            document.getElementById('dispEOF').textContent = '-';
             document.getElementById('dispContact').textContent = '-';
 
             document.getElementById('output1').textContent = 'Generate outputs to see content...';
@@ -1495,7 +1932,7 @@ We will visit the site to replace ${partDesc} on ${formattedDate}, at local stor
             document.getElementById('output5').textContent = 'Generate outputs to see content...';
             document.getElementById('output6').textContent = 'Generate outputs to see content...';
 
-            woData = { woNumber: '', wotNumber: '', incNumber: '', location: '', locationCode: '', shortDesc: '', address: '', issuer: '', requestor: '', cleanLocation: '' };
+            woData = { woNumber: '', wotNumber: '', incNumber: '', location: '', locationCode: '', shortDesc: '', address: '', province: '', issuer: '', requestor: '', cleanLocation: '' };
         }
 
         // Set default day on load
@@ -1508,3 +1945,5 @@ We will visit the site to replace ${partDesc} on ${formattedDate}, at local stor
     </script>
 </body>
 </html>
+
+
