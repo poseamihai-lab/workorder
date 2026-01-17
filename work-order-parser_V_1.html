@@ -486,7 +486,6 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
                     <div><strong>Location:</strong> <span id="dispLoc">-</span></div>
                     <div><strong>Description:</strong> <span id="dispDesc">-</span></div>
                     <div><strong>Required Date/Time:</strong> <span id="dispDateTime">-</span></div>
-                    <div><strong>Day/After Closure:</strong> <span id="dispEOF">-</span></div>
                     <div><strong>Contact:</strong> <span id="dispContact">-</span></div>
                 </div>
 
@@ -1326,11 +1325,6 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
                 }
             }
 
-            // During the day or after store closure: EOF
-            const eofMatch = text.match(/During the day or after store closure\s*:\s*(.+?)(?=\n|$)/i);
-            if (eofMatch) {
-                woData.eofStatus = eofMatch[1].trim();
-            }
 
             // Extract contact info with multiple format support
             // Formats to match:
@@ -1416,7 +1410,6 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
             
             document.getElementById('dispDesc').textContent = woData.shortDesc || '-';
             document.getElementById('dispDateTime').textContent = woData.requiredDateTime || '-';
-            document.getElementById('dispEOF').textContent = woData.eofStatus || '-';
             document.getElementById('dispContact').textContent = (woData.contactName && woData.contactPhone) ? woData.contactName + ' ' + woData.contactPhone : '-';
 
             // If date/time not found, set today's date (but not if already parsed)
@@ -1890,7 +1883,6 @@ We will visit the site to replace ${partDesc} on ${formattedDate}, at local stor
             document.getElementById('dispLoc').textContent = '-';
             document.getElementById('dispDesc').textContent = '-';
             document.getElementById('dispDateTime').textContent = '-';
-            document.getElementById('dispEOF').textContent = '-';
             document.getElementById('dispContact').textContent = '-';
 
             document.getElementById('output1').textContent = 'Generate outputs to see content...';
