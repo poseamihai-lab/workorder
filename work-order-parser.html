@@ -702,8 +702,9 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
             }
             
             // Try 2: Find province code anywhere in address (word boundary)
-            match = address.match(/\b([A-Z]{2})\b/);
-            if (match) {
+            // Use global flag to check ALL two-letter matches, not just the first
+            const allMatches = address.matchAll(/\b([A-Z]{2})\b/g);
+            for (const match of allMatches) {
                 const code = match[1].toUpperCase();
                 if (provinceMap[code]) {
                     return provinceMap[code];
