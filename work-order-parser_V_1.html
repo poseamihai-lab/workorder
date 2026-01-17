@@ -484,6 +484,7 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
                     <div><strong>INC#:</strong> <span id="dispINC">-</span></div>
                     <div><strong>Store Number:</strong> <span id="dispStoreNumber">-</span></div>
                     <div><strong>Location:</strong> <span id="dispLoc">-</span></div>
+                    <div><strong>Province:</strong> <span id="dispProvince">-</span></div>
                     <div><strong>Description:</strong> <span id="dispDesc">-</span></div>
                     <div><strong>Required Date/Time:</strong> <span id="dispDateTime">-</span></div>
                     <div><strong>Contact:</strong> <span id="dispContact">-</span></div>
@@ -668,12 +669,13 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
             locationCode: '',
             shortDesc: '',
             address: '',
+            province: '',
             issuer: '',
             requestor: '',
             cleanLocation: '' // Store clean location for CSV export
         };
 
-        // Extract province from address
+        // Extract province from address - handles abbreviations and full names anywhere
         function extractProvinceFromAddress(address) {
             const provinceMap = {
                 'ON': 'Ontario', 'QC': 'Quebec', 'BC': 'British Columbia',
@@ -682,11 +684,40 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
                 'PE': 'Prince Edward Island', 'NT': 'Northwest Territories',
                 'YT': 'Yukon', 'NU': 'Nunavut'
             };
-            const match = address.match(/([A-Z]{2})\s*$/i);
+            
+            const fullNameMap = {
+                'Ontario': 'Ontario', 'Quebec': 'Quebec', 'British Columbia': 'British Columbia',
+                'Alberta': 'Alberta', 'Manitoba': 'Manitoba', 'Saskatchewan': 'Saskatchewan',
+                'Nova Scotia': 'Nova Scotia', 'New Brunswick': 'New Brunswick', 
+                'Newfoundland and Labrador': 'Newfoundland and Labrador',
+                'Prince Edward Island': 'Prince Edward Island', 'Northwest Territories': 'Northwest Territories',
+                'Yukon': 'Yukon', 'Nunavut': 'Nunavut'
+            };
+            
+            // Try 1: Find province code followed by postal code pattern (e.g., "QC J6A 5N4")
+            let match = address.match(/\b([A-Z]{2})\s+[A-Z]\d[A-Z]\s*\d[A-Z]\d/i);
             if (match) {
                 const code = match[1].toUpperCase();
                 return provinceMap[code] || code;
             }
+            
+            // Try 2: Find province code anywhere in address (word boundary)
+            match = address.match(/\b([A-Z]{2})\b/);
+            if (match) {
+                const code = match[1].toUpperCase();
+                if (provinceMap[code]) {
+                    return provinceMap[code];
+                }
+            }
+            
+            // Try 3: Find full province name anywhere in address (case insensitive)
+            for (const [fullName, province] of Object.entries(fullNameMap)) {
+                const regex = new RegExp(`\\b${fullName}\\b`, 'i');
+                if (regex.test(address)) {
+                    return province;
+                }
+            }
+            
             return null;
         }
 
@@ -1408,6 +1439,14 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
                 locDisplay.textContent = '-';
             }
             
+            // Extract and display province
+            if (woData.address) {
+                woData.province = extractProvinceFromAddress(woData.address) || '-';
+            } else {
+                woData.province = '-';
+            }
+            document.getElementById('dispProvince').textContent = woData.province || '-';
+            
             document.getElementById('dispDesc').textContent = woData.shortDesc || '-';
             document.getElementById('dispDateTime').textContent = woData.requiredDateTime || '-';
             document.getElementById('dispContact').textContent = (woData.contactName && woData.contactPhone) ? woData.contactName + ' ' + woData.contactPhone : '-';
@@ -1881,6 +1920,7 @@ We will visit the site to replace ${partDesc} on ${formattedDate}, at local stor
             document.getElementById('dispINC').textContent = '-';
             document.getElementById('dispStoreNumber').textContent = '-';
             document.getElementById('dispLoc').textContent = '-';
+            document.getElementById('dispProvince').textContent = '-';
             document.getElementById('dispDesc').textContent = '-';
             document.getElementById('dispDateTime').textContent = '-';
             document.getElementById('dispContact').textContent = '-';
@@ -1892,7 +1932,7 @@ We will visit the site to replace ${partDesc} on ${formattedDate}, at local stor
             document.getElementById('output5').textContent = 'Generate outputs to see content...';
             document.getElementById('output6').textContent = 'Generate outputs to see content...';
 
-            woData = { woNumber: '', wotNumber: '', incNumber: '', location: '', locationCode: '', shortDesc: '', address: '', issuer: '', requestor: '', cleanLocation: '' };
+            woData = { woNumber: '', wotNumber: '', incNumber: '', location: '', locationCode: '', shortDesc: '', address: '', province: '', issuer: '', requestor: '', cleanLocation: '' };
         }
 
         // Set default day on load
