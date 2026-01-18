@@ -1268,7 +1268,6 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
             const dateTimeMatch = text.match(/Required Date\/Time of Service\?\s*\n?\s*(.+?)(?=\n|During|$)/i);
             if (dateTimeMatch) {
                 const dateTimeStr = dateTimeMatch[1].trim();
-                console.log('[DEBUG BFG] Found dateTimeStr:', dateTimeStr);
 
                 // Parse time - handle both "6pm" and "6:00pm" formats
                 const timeMatch = dateTimeStr.match(/(\d{1,2})(?::(\d{2}))?\s*(?:am|pm)?/i);
@@ -1813,35 +1812,27 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
                 // Try each proxy until one works
                 for (const proxy of corsProxies) {
                     try {
-                        console.log(`Trying CORS proxy: ${proxy.name}`);
                         const response = await fetch(proxy.url);
 
-                        if (!response.ok) {
-                            console.log(`${proxy.name} failed with status: ${response.status}`);
-                            continue;
-                        }
+                        if (!response.ok) continue;
 
                         const proxyData = await response.json();
                         const data = proxy.parseResponse(proxyData);
 
                         if (data && data.assigned_person) {
-                            console.log(`Success with ${proxy.name}`);
                             return {
                                 name: data.assigned_person.full_name || '',
                                 phone: data.assigned_person.phone_number || ''
                             };
                         }
                     } catch (proxyError) {
-                        console.log(`${proxy.name} error:`, proxyError.message);
                         continue;
                     }
                 }
 
                 // All proxies failed
-                console.log('All CORS proxies failed, will use manual entry');
                 return null;
             } catch (error) {
-                console.log('API fetch error (will use manual entry):', error);
                 return null;
             }
         }
