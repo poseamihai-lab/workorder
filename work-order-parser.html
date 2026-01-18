@@ -402,6 +402,70 @@ Proprietary - All Rights Reserved
             font-weight: 600;
             margin-left: 5px;
         }
+
+        /* Validation States */
+        .field-valid {
+            color: #155724;
+            background-color: #d4edda;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+
+        .field-missing {
+            color: #856404;
+            background-color: #fff3cd;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+
+        .input-missing {
+            border: 2px solid #ffc107 !important;
+            background-color: #fffbeb !important;
+        }
+
+        .input-valid {
+            border: 2px solid #28a745 !important;
+        }
+
+        .warning-banner {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-left: 4px solid #ffc107;
+            color: #856404;
+            padding: 12px 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+
+        .warning-banner h4 {
+            margin: 0 0 8px 0;
+            font-size: 14px;
+        }
+
+        .warning-banner ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+
+        .warning-banner li {
+            margin: 3px 0;
+            font-size: 13px;
+        }
+
+        .validation-summary {
+            display: flex;
+            gap: 15px;
+            margin-top: 8px;
+            font-size: 12px;
+        }
+
+        .validation-summary .valid-count {
+            color: #155724;
+        }
+
+        .validation-summary .missing-count {
+            color: #856404;
+        }
     </style>
 </head>
 <body>
@@ -496,13 +560,13 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
                 <h3>PART & CONTACT DETAILS</h3>
 
                 <div class="input-group">
-                    <label>Part Description:</label>
-                    <input type="text" id="partDesc" placeholder="e.g., 1.8TB hard disk DP/N 0GP3FR or 0JY57X...">
+                    <label>Select From Left Side Part Code:</label>
+                    <input type="text" id="partCode" placeholder="e.g., CBF-DEL-HD-XJ233">
                 </div>
 
                 <div class="input-group">
-                    <label>Part Code (CBF-...):</label>
-                    <input type="text" id="partCode" placeholder="e.g., CBF-DEL-HD-XJ233">
+                    <label>Part Description:</label>
+                    <input type="text" id="partDesc" placeholder="e.g., 1.8TB hard disk DP/N 0GP3FR or 0JY57X...">
                 </div>
 
                 <div class="input-group">
@@ -554,19 +618,19 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
                     </div>
                 </div>
 
-                <div class="input-group">
-                    <label>Today/Tonight/Tomorrow: <small>(optional)</small></label>
-                    <select id="whenWord">
-                        <option value="">-- Select if applies --</option>
-                        <option value="today">today</option>
-                        <option value="tonight">tonight</option>
-                        <option value="tomorrow">tomorrow</option>
-                    </select>
-                </div>
-
                 <div class="section-divider"></div>
 
                 <button class="btn btn-input" onclick="generateOutputs()">GENERATE ALL OUTPUTS</button>
+
+                <!-- Validation Warning Banner -->
+                <div class="warning-banner" id="validationWarning" style="display: none;">
+                    <h4>Missing Required Fields</h4>
+                    <ul id="missingFieldsList"></ul>
+                    <div class="validation-summary">
+                        <span class="valid-count" id="validCount"></span>
+                        <span class="missing-count" id="missingCount"></span>
+                    </div>
+                </div>
 
                 <div style="display: flex; gap: 10px; margin-top: 10px;">
                     <button class="btn btn-input" style="flex:1" onclick="exportToCSV()">EXPORT TO CSV (PROJEQTOR)</button>
@@ -674,6 +738,207 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
             requestor: '',
             cleanLocation: '' // Store clean location for CSV export
         };
+
+        // Validate all critical fields and show warnings
+        function validateFields() {
+            const missingFields = [];
+            const validFields = [];
+
+            // Helper to check if a value is empty/placeholder
+            const isEmpty = (val) => !val || val === '-' || val === '' || (typeof val === 'string' && val.startsWith('['));
+
+            // Check ticket numbers (all three required)
+            if (isEmpty(woData.wotNumber)) {
+                missingFields.push('WOT#');
+            } else {
+                validFields.push('WOT#');
+            }
+
+            if (isEmpty(woData.woNumber)) {
+                missingFields.push('WO#');
+            } else {
+                validFields.push('WO#');
+            }
+
+            if (isEmpty(woData.incNumber)) {
+                missingFields.push('INC#');
+            } else {
+                validFields.push('INC#');
+            }
+
+            // Check Store Location/Code
+            if (isEmpty(woData.locationCode)) {
+                missingFields.push('Store Number/Location Code');
+            } else {
+                validFields.push('Store Number');
+            }
+
+            // Check Part Code
+            const partCode = document.getElementById('partCode').value;
+            if (isEmpty(partCode)) {
+                missingFields.push('Part Code');
+                document.getElementById('partCode').classList.add('input-missing');
+                document.getElementById('partCode').classList.remove('input-valid');
+            } else {
+                validFields.push('Part Code');
+                document.getElementById('partCode').classList.remove('input-missing');
+                document.getElementById('partCode').classList.add('input-valid');
+            }
+
+            // Check Part Description
+            const partDesc = document.getElementById('partDesc').value;
+            if (isEmpty(partDesc)) {
+                missingFields.push('Part Description');
+                document.getElementById('partDesc').classList.add('input-missing');
+                document.getElementById('partDesc').classList.remove('input-valid');
+            } else {
+                validFields.push('Part Description');
+                document.getElementById('partDesc').classList.remove('input-missing');
+                document.getElementById('partDesc').classList.add('input-valid');
+            }
+
+            // Check Short Description
+            if (isEmpty(woData.shortDesc)) {
+                missingFields.push('Short Description');
+            } else {
+                validFields.push('Short Description');
+            }
+
+            // Check Province
+            if (isEmpty(woData.province)) {
+                missingFields.push('Province');
+            } else {
+                validFields.push('Province');
+            }
+
+            // Check Required Date/Time
+            const execDate = document.getElementById('execDate').value;
+            const arrivalTime = document.getElementById('arrivalTime').value;
+            if (isEmpty(execDate) || isEmpty(arrivalTime)) {
+                missingFields.push('Required Date/Time');
+                if (isEmpty(execDate)) {
+                    document.getElementById('execDate').classList.add('input-missing');
+                    document.getElementById('execDate').classList.remove('input-valid');
+                }
+                if (isEmpty(arrivalTime)) {
+                    document.getElementById('arrivalTime').classList.add('input-missing');
+                    document.getElementById('arrivalTime').classList.remove('input-valid');
+                }
+            } else {
+                validFields.push('Required Date/Time');
+                document.getElementById('execDate').classList.remove('input-missing');
+                document.getElementById('execDate').classList.add('input-valid');
+                document.getElementById('arrivalTime').classList.remove('input-missing');
+                document.getElementById('arrivalTime').classList.add('input-valid');
+            }
+
+            // Check EOD Time
+            const eodTime = document.getElementById('eodTime').value;
+            if (isEmpty(eodTime)) {
+                missingFields.push('EOD Time');
+                document.getElementById('eodTime').classList.add('input-missing');
+                document.getElementById('eodTime').classList.remove('input-valid');
+            } else {
+                validFields.push('EOD Time');
+                document.getElementById('eodTime').classList.remove('input-missing');
+                document.getElementById('eodTime').classList.add('input-valid');
+            }
+
+            // Check Day of Week
+            const dayOfWeek = document.getElementById('dayOfWeek').value;
+            if (isEmpty(dayOfWeek)) {
+                missingFields.push('Day of Week');
+            } else {
+                validFields.push('Day of Week');
+            }
+
+            // Check Contact Name
+            const contactName = document.getElementById('contactName').value;
+            if (isEmpty(contactName)) {
+                missingFields.push('Contact Name');
+                document.getElementById('contactName').classList.add('input-missing');
+                document.getElementById('contactName').classList.remove('input-valid');
+            } else {
+                validFields.push('Contact Name');
+                document.getElementById('contactName').classList.remove('input-missing');
+                document.getElementById('contactName').classList.add('input-valid');
+            }
+
+            // Check Contact Phone
+            const contactPhone = document.getElementById('contactPhone').value;
+            if (isEmpty(contactPhone)) {
+                missingFields.push('Contact Phone');
+                document.getElementById('contactPhone').classList.add('input-missing');
+                document.getElementById('contactPhone').classList.remove('input-valid');
+            } else {
+                validFields.push('Contact Phone');
+                document.getElementById('contactPhone').classList.remove('input-missing');
+                document.getElementById('contactPhone').classList.add('input-valid');
+            }
+
+            // Update extracted info display with validation classes
+            updateExtractedInfoValidation();
+
+            // Update warning banner
+            const warningBanner = document.getElementById('validationWarning');
+            const missingList = document.getElementById('missingFieldsList');
+            const validCount = document.getElementById('validCount');
+            const missingCount = document.getElementById('missingCount');
+
+            if (missingFields.length > 0) {
+                missingList.innerHTML = missingFields.map(f => `<li>${f}</li>`).join('');
+                validCount.textContent = `${validFields.length} fields OK`;
+                missingCount.textContent = `${missingFields.length} fields missing`;
+                warningBanner.style.display = 'block';
+            } else {
+                warningBanner.style.display = 'none';
+            }
+
+            return {
+                isValid: missingFields.length === 0,
+                missingFields: missingFields,
+                validFields: validFields
+            };
+        }
+
+        // Update extracted info spans with validation highlighting
+        function updateExtractedInfoValidation() {
+            const isEmpty = (val) => !val || val === '-' || val === '';
+
+            // WOT#
+            const dispWOT = document.getElementById('dispWOT');
+            dispWOT.className = isEmpty(woData.wotNumber) ? 'field-missing' : 'field-valid';
+
+            // WO#
+            const dispWO = document.getElementById('dispWO');
+            dispWO.className = isEmpty(woData.woNumber) ? 'field-missing' : 'field-valid';
+
+            // INC#
+            const dispINC = document.getElementById('dispINC');
+            dispINC.className = isEmpty(woData.incNumber) ? 'field-missing' : 'field-valid';
+
+            // Store Number
+            const dispStoreNumber = document.getElementById('dispStoreNumber');
+            dispStoreNumber.className = isEmpty(woData.locationCode) ? 'field-missing' : 'field-valid';
+
+            // Province
+            const dispProvince = document.getElementById('dispProvince');
+            dispProvince.className = isEmpty(woData.province) || woData.province === '-' ? 'field-missing' : 'field-valid';
+
+            // Description
+            const dispDesc = document.getElementById('dispDesc');
+            dispDesc.className = isEmpty(woData.shortDesc) ? 'field-missing' : 'field-valid';
+
+            // Required Date/Time
+            const dispDateTime = document.getElementById('dispDateTime');
+            dispDateTime.className = isEmpty(woData.requiredDateTime) ? 'field-missing' : 'field-valid';
+
+            // Contact
+            const dispContact = document.getElementById('dispContact');
+            const contactName = document.getElementById('contactName').value;
+            const contactPhone = document.getElementById('contactPhone').value;
+            dispContact.className = (isEmpty(contactName) || isEmpty(contactPhone)) ? 'field-missing' : 'field-valid';
+        }
 
         // Extract province from address - handles abbreviations and full names anywhere
         function extractProvinceFromAddress(address) {
@@ -1465,7 +1730,7 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
             // Fetch contact info from API if arrival time and date are available
             const arrivalTimeField = document.getElementById('arrivalTime').value;
             const execDateField = document.getElementById('execDate').value;
-            
+
             if (arrivalTimeField && execDateField) {
                 fetchContactFromAPI(arrivalTimeField, execDateField).then(contactInfo => {
                     if (contactInfo) {
@@ -1578,6 +1843,13 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
         }
 
         function generateOutputs() {
+            // Validate fields and show warning (but continue generating)
+            const validation = validateFields();
+            if (!validation.isValid) {
+                // Scroll to warning banner to make sure user sees it
+                document.getElementById('validationWarning').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+
             const partDesc = document.getElementById('partDesc').value || '[PART DESCRIPTION]';
             const partCode = document.getElementById('partCode').value || '[PART CODE]';
             const diskSlot = document.getElementById('diskSlot').value || '';
@@ -1587,7 +1859,6 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
             const execDate = document.getElementById('execDate').value || '[DATE]';
             const arrivalTime = document.getElementById('arrivalTime').value || '[TIME]';
             const eodTime = document.getElementById('eodTime').value || '[EOD TIME]';
-            const whenWord = document.getElementById('whenWord').value;
 
             const fullPart = partDesc + ' - ' + partCode;
             const locationCode = woData.locationCode || '[LOCATION]';
@@ -1708,7 +1979,7 @@ Special instructions for BFG Technician: Once onsite tech reaches the site, plea
 3. Added the following internal work note to ticket:
 ${woData.shortDesc}
 Our tech needs to bring ${fullPart}
-Our tech needs to be onsite ${whenWord}, ${execDate} at store local time of ${arrivalTime} after EOD.
+Our tech needs to be onsite ${execDate} at store local time of ${arrivalTime} after EOD.
 Once onsite tech reaches the site, please call ${contactName} ${contactPhone} first. Do not perform any work without contacting ${contactName}.
 
 4. Sent the following email to Dispatch team:
@@ -1716,7 +1987,7 @@ Hi Dispatch Team,
 
 ${woData.shortDesc}
 Our tech needs to bring ${fullPart}
-Our tech needs to be onsite ${whenWord}, ${execDate} at store local time of ${arrivalTime} after EOD.
+Our tech needs to be onsite ${execDate} at store local time of ${arrivalTime} after EOD.
 Once onsite tech reaches the site, please call ${contactName} ${contactPhone} first. Do not perform any work without contacting ${contactName}.
 
 Please note the following internal work note and Performed Work Note (Customer visible) has been added to the ticket:
@@ -1915,6 +2186,7 @@ We will visit the site to replace ${partDesc} on ${formattedDate}, at local stor
             document.getElementById('contactPhone').value = '';
             document.getElementById('arrivalTime').value = '';
             document.getElementById('eodTime').value = '';
+            document.getElementById('execDate').value = '';
 
             document.getElementById('dispWOT').textContent = '-';
             document.getElementById('dispWO').textContent = '-';
@@ -1934,6 +2206,18 @@ We will visit the site to replace ${partDesc} on ${formattedDate}, at local stor
             document.getElementById('output6').textContent = 'Generate outputs to see content...';
 
             woData = { woNumber: '', wotNumber: '', incNumber: '', location: '', locationCode: '', shortDesc: '', address: '', province: '', issuer: '', requestor: '', cleanLocation: '' };
+
+            // Reset validation states
+            document.getElementById('validationWarning').style.display = 'none';
+            const inputFields = ['partCode', 'partDesc', 'contactName', 'contactPhone', 'execDate', 'arrivalTime', 'eodTime'];
+            inputFields.forEach(id => {
+                const el = document.getElementById(id);
+                el.classList.remove('input-missing', 'input-valid');
+            });
+            const dispFields = ['dispWOT', 'dispWO', 'dispINC', 'dispStoreNumber', 'dispProvince', 'dispDesc', 'dispDateTime', 'dispContact'];
+            dispFields.forEach(id => {
+                document.getElementById(id).className = '';
+            });
         }
 
         // Set default day on load
