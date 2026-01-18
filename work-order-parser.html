@@ -474,7 +474,7 @@ Proprietary - All Rights Reserved
     <div class="main-container">
         <!-- LEFT PANEL - PARTS DATABASE -->
         <div class="panel">
-            <h2>DELL PARTS DATABASE <span class="parts-badge" id="partCountBadge">16 Parts</span></h2>
+            <h2>DELL PARTS DATABASE <span class="parts-badge" id="partCountBadge">17 Parts</span></h2>
 
             <!-- Auto-complete Search -->
             <div class="input-group" style="margin-bottom: 15px;">
@@ -1100,6 +1100,8 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
         // Initialize parts table on load
         function initializePartsDatabase() {
             renderPartsTable(dellPartsDatabase);
+            // Update parts count badge dynamically
+            document.getElementById('partCountBadge').textContent = dellPartsDatabase.length + ' Parts';
         }
 
         // Render parts table
