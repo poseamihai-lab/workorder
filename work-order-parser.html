@@ -1497,7 +1497,7 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
                 woData.cleanLocation = woData.locationCode + (woData.address ? ' - ' + woData.address : '');
                 
                 // Extract short description
-                woData.shortDesc = extractField(text, /Short Description:\s*\n?\s*(.+?)(?=\n\n|$)/is) || '';
+                woData.shortDesc = extractField(text, /Short Description:\s*\n?\s*(.+?)(?=\n|$)/i) || '';
 
                 // Try to extract disk slot from description (supports both colon and dot formats)
                 // e.g., "0:0:4" or "0.0.4"
