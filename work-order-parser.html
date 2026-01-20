@@ -1099,7 +1099,27 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
                 }
                 return result;
             }
-            
+
+            // Format 4: Month Day; Hpm or Month Day; H:MMpm (e.g., "Jan 20; 9pm" or "Jan 20; 9:30pm")
+            // Also handles semicolon or comma separators
+            const monthNames = {
+                'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4, 'may': 5, 'jun': 6,
+                'jul': 7, 'aug': 8, 'sep': 9, 'sept': 9, 'oct': 10, 'nov': 11, 'dec': 12,
+                'january': 1, 'february': 2, 'march': 3, 'april': 4, 'june': 6,
+                'july': 7, 'august': 8, 'september': 9, 'october': 10, 'november': 11, 'december': 12
+            };
+            match = dateTimeStr.match(/(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+(\d{1,2})\s*[;,]\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm)/i);
+            if (match) {
+                const monthStr = match[1].toLowerCase();
+                result.month = monthNames[monthStr] || monthNames[monthStr.substring(0, 3)];
+                result.day = parseInt(match[2]);
+                result.year = new Date().getFullYear();
+                result.hours = parseInt(match[3]);
+                result.minutes = match[4] ? parseInt(match[4]) : 0;
+                result.ampm = match[5].toUpperCase();
+                return result;
+            }
+
             return null;
         }
 
@@ -1479,14 +1499,17 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
                 // Extract short description
                 woData.shortDesc = extractField(text, /Short Description:\s*\n?\s*(.+?)(?=\n\n|$)/is) || '';
 
-                // Try to extract disk slot from description
-                const slotMatch = woData.shortDesc.match(/(\d+:\d+:\d+)/);
+                // Try to extract disk slot from description (supports both colon and dot formats)
+                // e.g., "0:0:4" or "0.0.4"
+                const slotMatch = woData.shortDesc.match(/(\d+[:\.])\d+[:\.](\d+)/);
                 if (slotMatch) {
-                    document.getElementById('diskSlot').value = slotMatch[1];
+                    // Normalize to colon format
+                    const normalizedSlot = slotMatch[0].replace(/\./g, ':');
+                    document.getElementById('diskSlot').value = normalizedSlot;
                 }
 
                 // Extract SYSTEM INFORMATION fields
-                // Required Date/Time of Service: 10:30pm Jan 15
+                // Required Date/Time of Service: 10:30pm Jan 15 OR Jan 20; 9pm
                 const dateTimeMatch = text.match(/Required Date\/Time of Service\s*:\s*(.+?)(?=\n|$)/i);
                 if (dateTimeMatch) {
                     dateTimeParsed = true;
@@ -1494,12 +1517,14 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
                     woData.requiredDateTime = dateTimeStr;
 
                     // Comprehensive date/time parsing covering all formats
-                    const timeMatch = dateTimeStr.match(/(\d{1,2})(?::(\d{2}))?\s*(?:am|pm)?/i);
+                    // IMPORTANT: Try to match time WITH am/pm first to avoid matching day numbers
+                    // Supports: "9pm", "9:30pm", "9 pm", "9:30 pm"
+                    let timeMatch = dateTimeStr.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)/i);
+                    let ampm = 'PM'; // default
+
                     if (timeMatch) {
-                        // Extract hours, minutes, and AM/PM
-                        const fullTimeStr = timeMatch[0].trim();
-                        const ampmMatch = fullTimeStr.match(/(am|pm)/i);
-                        const ampm = ampmMatch ? ampmMatch[1].toUpperCase() : 'PM';
+                        // Found time with am/pm indicator
+                        ampm = timeMatch[3].toUpperCase();
                         
                     let hours = parseInt(timeMatch[1]);
                     let minutes = timeMatch[2] ? parseInt(timeMatch[2]) : 0;
@@ -1629,6 +1654,32 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
                 }
             }
 
+            // Extract EOD (End of Day) information from SYSTEM INFORMATION section
+            // Format: "During the day or after store closure: After EOD" or "During EOD"
+            const eodMatch = text.match(/(?:during the day or )?after store closure\s*:\s*(After EOD|During EOD|During the day)/i);
+            if (eodMatch) {
+                const eodIndicator = eodMatch[1].trim();
+                // If "After EOD" is specified, the service time is likely the EOD time
+                if (eodIndicator.toLowerCase() === 'after eod') {
+                    // Get the service time from arrivalTime field and add 20 minutes back to get EOD
+                    const arrivalField = document.getElementById('arrivalTime').value;
+                    if (arrivalField) {
+                        // Parse arrival time and add 20 minutes to estimate EOD
+                        const arrivalMatch = arrivalField.match(/(\d{1,2}):(\d{2})\s*(\w+)/);
+                        if (arrivalMatch) {
+                            let eodHours = parseInt(arrivalMatch[1]);
+                            let eodMins = parseInt(arrivalMatch[2]) + 20;
+                            const tz = arrivalMatch[3];
+                            if (eodMins >= 60) {
+                                eodMins -= 60;
+                                eodHours += 1;
+                            }
+                            if (eodHours >= 24) eodHours -= 24;
+                            document.getElementById('eodTime').value = `${eodHours.toString().padStart(2, '0')}:${eodMins.toString().padStart(2, '0')} ${tz}`;
+                        }
+                    }
+                }
+            }
 
             // Extract contact info with multiple format support
             // Formats to match:
