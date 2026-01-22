@@ -544,7 +544,7 @@ Proprietary - All Rights Reserved
                     </label>
                     <textarea class="paste-area" id="pasteInput" placeholder="Line 1: Paste here the forward email from Service Now Notification
 Line 2: Paste here from service now ticket the date and time of service (Description, System Info)
-Line 3: Paste here the contact info name and phone number
+Line 3: Paste here the contact info name and phone number (optional it should be auto-updated from Dalibor schedule)
 Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></textarea>
                 </div>
 
@@ -599,6 +599,10 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
 
                 <div class="row">
                     <div class="input-group">
+                        <label>Date:</label>
+                        <input type="text" id="execDate" placeholder="e.g., December 30, 2025">
+                    </div>
+                    <div class="input-group">
                         <label>Day of Week:</label>
                         <select id="dayOfWeek">
                             <option value="Monday">Monday</option>
@@ -609,10 +613,6 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
                             <option value="Saturday">Saturday</option>
                             <option value="Sunday">Sunday</option>
                         </select>
-                    </div>
-                    <div class="input-group">
-                        <label>Date:</label>
-                        <input type="text" id="execDate" placeholder="e.g., December 30, 2025">
                     </div>
                 </div>
 
