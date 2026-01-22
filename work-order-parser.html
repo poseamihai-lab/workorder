@@ -467,6 +467,9 @@ Proprietary - All Rights Reserved
             color: #856404;
         }
     </style>
+    <!-- Flatpickr Date Picker -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 </head>
 <body>
     <h1>Work Order Generator</h1>
@@ -616,11 +619,45 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
                 <div class="row">
                     <div class="input-group">
                         <label>Arrival Time:</label>
-                        <input type="text" id="arrivalTime" placeholder="e.g., 8:45 PM EST">
+                        <div style="display: flex; gap: 8px;">
+                            <input type="text" id="arrivalTimeInput" placeholder="20:45" style="flex: 1;">
+                            <select id="arrivalTimezone" style="width: 80px;">
+                                <option value="EST">EST</option>
+                                <option value="EDT">EDT</option>
+                                <option value="CST">CST</option>
+                                <option value="CDT">CDT</option>
+                                <option value="MST">MST</option>
+                                <option value="MDT">MDT</option>
+                                <option value="PST">PST</option>
+                                <option value="PDT">PDT</option>
+                                <option value="AST">AST</option>
+                                <option value="ADT">ADT</option>
+                                <option value="NST">NST</option>
+                                <option value="NDT">NDT</option>
+                            </select>
+                        </div>
+                        <input type="hidden" id="arrivalTime">
                     </div>
                     <div class="input-group">
                         <label>EOD Time:</label>
-                        <input type="text" id="eodTime" placeholder="e.g., 9:00 PM EST">
+                        <div style="display: flex; gap: 8px;">
+                            <input type="text" id="eodTimeInput" placeholder="21:00" style="flex: 1;">
+                            <select id="eodTimezone" style="width: 80px;">
+                                <option value="EST">EST</option>
+                                <option value="EDT">EDT</option>
+                                <option value="CST">CST</option>
+                                <option value="CDT">CDT</option>
+                                <option value="MST">MST</option>
+                                <option value="MDT">MDT</option>
+                                <option value="PST">PST</option>
+                                <option value="PDT">PDT</option>
+                                <option value="AST">AST</option>
+                                <option value="ADT">ADT</option>
+                                <option value="NST">NST</option>
+                                <option value="NDT">NDT</option>
+                            </select>
+                        </div>
+                        <input type="hidden" id="eodTime">
                     </div>
                 </div>
 
@@ -730,6 +767,14 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
             { code: 'CBF-DEL-SV-VRTX', description: 'Dell PowerEdge VRTX Server 7 x 1.8TB', category: 'SV' }
         ];
 
+        // Flatpickr instances for date/time pickers
+        let execDatePicker = null;
+        let eodTimePicker = null;
+        let arrivalTimePicker = null;
+
+        // Store current timezone (from parsed province, default EST)
+        let currentTimezone = 'EST';
+
         // Store parsed work order data
         let woData = {
             woNumber: '',
@@ -827,27 +872,27 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
                     document.getElementById('execDate').classList.remove('input-valid');
                 }
                 if (isEmpty(arrivalTime)) {
-                    document.getElementById('arrivalTime').classList.add('input-missing');
-                    document.getElementById('arrivalTime').classList.remove('input-valid');
+                    document.getElementById('arrivalTimeInput').classList.add('input-missing');
+                    document.getElementById('arrivalTimeInput').classList.remove('input-valid');
                 }
             } else {
                 validFields.push('Required Date/Time');
                 document.getElementById('execDate').classList.remove('input-missing');
                 document.getElementById('execDate').classList.add('input-valid');
-                document.getElementById('arrivalTime').classList.remove('input-missing');
-                document.getElementById('arrivalTime').classList.add('input-valid');
+                document.getElementById('arrivalTimeInput').classList.remove('input-missing');
+                document.getElementById('arrivalTimeInput').classList.add('input-valid');
             }
 
             // Check EOD Time
             const eodTime = document.getElementById('eodTime').value;
             if (isEmpty(eodTime)) {
                 missingFields.push('EOD Time');
-                document.getElementById('eodTime').classList.add('input-missing');
-                document.getElementById('eodTime').classList.remove('input-valid');
+                document.getElementById('eodTimeInput').classList.add('input-missing');
+                document.getElementById('eodTimeInput').classList.remove('input-valid');
             } else {
                 validFields.push('EOD Time');
-                document.getElementById('eodTime').classList.remove('input-missing');
-                document.getElementById('eodTime').classList.add('input-valid');
+                document.getElementById('eodTimeInput').classList.remove('input-missing');
+                document.getElementById('eodTimeInput').classList.add('input-valid');
             }
 
             // Check Day of Week
@@ -1316,11 +1361,17 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
                     const province = extractProvinceFromAddress(woData.address);
                     const isDST = isDaylightSavingTime(new Date());
                     const tzAbbr = province ? getTimezoneAbbr(province, isDST) : 'EST';
+                    currentTimezone = tzAbbr; // Store for time pickers
+                    document.getElementById('eodTimezone').value = tzAbbr;
+                    document.getElementById('arrivalTimezone').value = tzAbbr;
 
-                    // Set arrival time in 24-hour format with timezone
-                    document.getElementById('arrivalTime').value = 
-                        arrivalHours.toString().padStart(2, '0') + ':' + 
-                        arrivalMins.toString().padStart(2, '0') + ' ' + tzAbbr;
+                    // Set arrival time in 24-hour format
+                    const arrivalTimeOnly = arrivalHours.toString().padStart(2, '0') + ':' + arrivalMins.toString().padStart(2, '0');
+                    if (arrivalTimePicker) {
+                        arrivalTimePicker.setDate(arrivalTimeOnly, false);
+                    }
+                    document.getElementById('arrivalTimeInput').value = arrivalTimeOnly;
+                    updateArrivalTimeValue();
                 }
 
                 // Parse date - try all common formats
@@ -1379,13 +1430,19 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
                 // Set the date fields if we found a valid date
                 if (day && month && year) {
                     const fullMonth = monthNamesList[month - 1];
-                    document.getElementById('execDate').value = fullMonth + ' ' + day + ', ' + year;
-                    
+                    const dateValue = fullMonth + ' ' + day + ', ' + year;
+                    // Use Flatpickr API if available, otherwise set value directly
+                    if (execDatePicker) {
+                        execDatePicker.setDate(dateValue, true);
+                    } else {
+                        document.getElementById('execDate').value = dateValue;
+                    }
+
                     // Calculate day of week
                     const dateObj = new Date(year, month - 1, parseInt(day));
                     const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
                     document.getElementById('dayOfWeek').value = days[dateObj.getDay()];
-                    
+
                     // Use unified time parser
                     const timeParsed = parseTimeString(dateTimeStr);
                     if (timeParsed && timeParsed.hours !== null) {
@@ -1403,10 +1460,13 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
                         const province = extractProvinceFromAddress(woData.address);
                         const isDST = isDaylightSavingTime(new Date(year, month - 1, parseInt(day)));
                         const tzAbbr = province ? getTimezoneAbbr(province, isDST) : 'EST';
-                        
+                        currentTimezone = tzAbbr; // Store for time pickers
+                        document.getElementById('eodTimezone').value = tzAbbr;
+                        document.getElementById('arrivalTimezone').value = tzAbbr;
+
                         // Format required datetime
                         woData.requiredDateTime = `${monthPad}/${dayPad}/${shortYear} - ${hours24.toString().padStart(2, '0')}:${timeParsed.minutes.toString().padStart(2, '0')} ${tzAbbr}`;
-                        
+
                         // Calculate arrival time (20 minutes before)
                         let arrivalHours = hours24;
                         let arrivalMinutes = timeParsed.minutes - 20;
@@ -1417,8 +1477,14 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
                         if (arrivalHours < 0) {
                             arrivalHours += 24;
                         }
-                        
-                        document.getElementById('arrivalTime').value = `${arrivalHours.toString().padStart(2, '0')}:${arrivalMinutes.toString().padStart(2, '0')} ${tzAbbr}`;
+
+                        // Set arrival time picker
+                        const arrivalTimeOnly = `${arrivalHours.toString().padStart(2, '0')}:${arrivalMinutes.toString().padStart(2, '0')}`;
+                        if (arrivalTimePicker) {
+                            arrivalTimePicker.setDate(arrivalTimeOnly, false);
+                        }
+                        document.getElementById('arrivalTimeInput').value = arrivalTimeOnly;
+                        updateArrivalTimeValue();
                     }
                 }
             }
@@ -1525,31 +1591,35 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
                     if (timeMatch) {
                         // Found time with am/pm indicator
                         ampm = timeMatch[3].toUpperCase();
-                        
-                    let hours = parseInt(timeMatch[1]);
-                    let minutes = timeMatch[2] ? parseInt(timeMatch[2]) : 0;
-                    
-                    // Subtract 20 minutes for arrival time
-                    minutes -= 20;
-                    if (minutes < 0) {
-                        minutes += 60;
-                        hours -= 1;
+
+                        let hours = parseInt(timeMatch[1]);
+                        let minutes = timeMatch[2] ? parseInt(timeMatch[2]) : 0;
+
+                        // Convert to 24-hour format
+                        let hours24 = hours;
+                        if (ampm === 'PM' && hours !== 12) hours24 = hours + 12;
+                        if (ampm === 'AM' && hours === 12) hours24 = 0;
+
+                        // Subtract 20 minutes for arrival time
+                        minutes -= 20;
+                        if (minutes < 0) {
+                            minutes += 60;
+                            hours24 -= 1;
+                        }
+                        if (hours24 < 0) hours24 += 24;
+
+                        // Set arrival time picker (24-hour format)
+                        const arrivalTimeOnly = hours24.toString().padStart(2, '0') + ':' + minutes.toString().padStart(2, '0');
+                        if (arrivalTimePicker) {
+                            arrivalTimePicker.setDate(arrivalTimeOnly, false);
+                        }
+                        document.getElementById('arrivalTimeInput').value = arrivalTimeOnly;
+                        document.getElementById('arrivalTimezone').value = 'EST';
+                        currentTimezone = 'EST';
+                        document.getElementById('eodTimezone').value = 'EST';
+                        updateArrivalTimeValue();
+                        // Don't auto-calculate EOD - let user enter it manually or from email
                     }
-                    
-                    // Handle 12-hour format
-                    if (hours <= 0) {
-                        hours += 12;
-                        // Switch AM/PM when crossing midnight
-                        const newAmpm = ampm === 'AM' ? 'PM' : 'AM';
-                        document.getElementById('arrivalTime').value = hours + ':' + minutes.toString().padStart(2, '0') + ' ' + newAmpm + ' EST';
-                    } else if (hours > 12) {
-                        hours -= 12;
-                        document.getElementById('arrivalTime').value = hours + ':' + minutes.toString().padStart(2, '0') + ' ' + ampm + ' EST';
-                    } else {
-                        document.getElementById('arrivalTime').value = hours + ':' + minutes.toString().padStart(2, '0') + ' ' + ampm + ' EST';
-                    }
-                    // Don't auto-calculate EOD - let user enter it manually or from email
-                }
 
                 // Parse date - try all common formats
                 let day, month, year;
@@ -1610,13 +1680,19 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
                 // Set the date fields if we found a valid date
                 if (day && month && year) {
                     const fullMonth = monthNamesList[month - 1];
-                    document.getElementById('execDate').value = fullMonth + ' ' + day + ', ' + year;
-                    
+                    const dateValue = fullMonth + ' ' + day + ', ' + year;
+                    // Use Flatpickr API if available, otherwise set value directly
+                    if (execDatePicker) {
+                        execDatePicker.setDate(dateValue, true);
+                    } else {
+                        document.getElementById('execDate').value = dateValue;
+                    }
+
                     // Calculate day of week
                     const dateObj = new Date(year, month - 1, parseInt(day));
                     const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
                     document.getElementById('dayOfWeek').value = days[dateObj.getDay()];
-                    
+
                     // Use unified time parser
                     const timeParsed = parseTimeString(dateTimeStr);
                     if (timeParsed && timeParsed.hours !== null) {
@@ -1634,10 +1710,13 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
                         const province = extractProvinceFromAddress(woData.address);
                         const isDST = isDaylightSavingTime(new Date(year, month - 1, parseInt(day)));
                         const tzAbbr = province ? getTimezoneAbbr(province, isDST) : 'EST';
-                        
+                        currentTimezone = tzAbbr; // Store for time pickers
+                        document.getElementById('eodTimezone').value = tzAbbr;
+                        document.getElementById('arrivalTimezone').value = tzAbbr;
+
                         // Format required datetime
                         woData.requiredDateTime = `${monthPad}/${dayPad}/${shortYear} - ${hours24.toString().padStart(2, '0')}:${timeParsed.minutes.toString().padStart(2, '0')} ${tzAbbr}`;
-                        
+
                         // Calculate arrival time (20 minutes before)
                         let arrivalHours = hours24;
                         let arrivalMinutes = timeParsed.minutes - 20;
@@ -1648,8 +1727,14 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
                         if (arrivalHours < 0) {
                             arrivalHours += 24;
                         }
-                        
-                        document.getElementById('arrivalTime').value = `${arrivalHours.toString().padStart(2, '0')}:${arrivalMinutes.toString().padStart(2, '0')} ${tzAbbr}`;
+
+                        // Set arrival time picker
+                        const arrivalTimeOnly = `${arrivalHours.toString().padStart(2, '0')}:${arrivalMinutes.toString().padStart(2, '0')}`;
+                        if (arrivalTimePicker) {
+                            arrivalTimePicker.setDate(arrivalTimeOnly, false);
+                        }
+                        document.getElementById('arrivalTimeInput').value = arrivalTimeOnly;
+                        updateArrivalTimeValue();
                     }
                 }
             }
@@ -1675,7 +1760,20 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
                                 eodHours += 1;
                             }
                             if (eodHours >= 24) eodHours -= 24;
-                            document.getElementById('eodTime').value = `${eodHours.toString().padStart(2, '0')}:${eodMins.toString().padStart(2, '0')} ${tz}`;
+                            currentTimezone = tz; // Update timezone for picker
+                            const timeOnly = `${eodHours.toString().padStart(2, '0')}:${eodMins.toString().padStart(2, '0')}`;
+
+                            // Set time picker
+                            if (eodTimePicker) {
+                                eodTimePicker.setDate(timeOnly, false);
+                            }
+                            document.getElementById('eodTimeInput').value = timeOnly;
+
+                            // Set timezone dropdown
+                            document.getElementById('eodTimezone').value = tz;
+
+                            // Update combined hidden field
+                            updateEodTimeValue();
                         }
                     }
                 }
@@ -1781,7 +1879,13 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
                 const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
                 const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
                 document.getElementById('dayOfWeek').value = days[today.getDay()];
-                document.getElementById('execDate').value = months[today.getMonth()] + ' ' + today.getDate() + ', ' + today.getFullYear();
+                const dateValue = months[today.getMonth()] + ' ' + today.getDate() + ', ' + today.getFullYear();
+                // Use Flatpickr API if available, otherwise set value directly
+                if (execDatePicker) {
+                    execDatePicker.setDate(dateValue, true);
+                } else {
+                    document.getElementById('execDate').value = dateValue;
+                }
             }
 
             
@@ -2255,9 +2359,27 @@ We will visit the site to replace ${partDesc} on ${formattedDate}, at local stor
             document.getElementById('diskSlot').value = '';
             document.getElementById('contactName').value = '';
             document.getElementById('contactPhone').value = '';
+            // Clear Arrival time picker and timezone dropdown
+            if (arrivalTimePicker) {
+                arrivalTimePicker.clear();
+            }
+            document.getElementById('arrivalTimeInput').value = '';
+            document.getElementById('arrivalTimezone').value = 'EST';
             document.getElementById('arrivalTime').value = '';
+            // Clear EOD time picker and timezone dropdown
+            if (eodTimePicker) {
+                eodTimePicker.clear();
+            }
+            document.getElementById('eodTimeInput').value = '';
+            document.getElementById('eodTimezone').value = 'EST';
             document.getElementById('eodTime').value = '';
-            document.getElementById('execDate').value = '';
+            currentTimezone = 'EST'; // Reset timezone to default
+            // Clear Flatpickr date picker
+            if (execDatePicker) {
+                execDatePicker.clear();
+            } else {
+                document.getElementById('execDate').value = '';
+            }
 
             document.getElementById('dispWOT').textContent = '-';
             document.getElementById('dispWO').textContent = '-';
@@ -2280,7 +2402,7 @@ We will visit the site to replace ${partDesc} on ${formattedDate}, at local stor
 
             // Reset validation states
             document.getElementById('validationWarning').style.display = 'none';
-            const inputFields = ['partCode', 'partDesc', 'contactName', 'contactPhone', 'execDate', 'arrivalTime', 'eodTime'];
+            const inputFields = ['partCode', 'partDesc', 'contactName', 'contactPhone', 'execDate', 'arrivalTimeInput', 'eodTimeInput'];
             inputFields.forEach(id => {
                 const el = document.getElementById(id);
                 el.classList.remove('input-missing', 'input-valid');
@@ -2297,7 +2419,79 @@ We will visit the site to replace ${partDesc} on ${formattedDate}, at local stor
             const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
             document.getElementById('dayOfWeek').value = days[today.getDay()];
             initializePartsDatabase();
+
+            // Initialize Flatpickr date picker
+            execDatePicker = flatpickr("#execDate", {
+                dateFormat: "F j, Y",      // Output: "January 15, 2026"
+                allowInput: true,           // Allow manual typing
+                altInput: false,
+                onClose: function(selectedDates, dateStr, instance) {
+                    // Update day of week when date is selected
+                    if (selectedDates.length > 0) {
+                        const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                        document.getElementById('dayOfWeek').value = days[selectedDates[0].getDay()];
+                    }
+                }
+            });
+
+            // Initialize Arrival Time picker (time only)
+            arrivalTimePicker = flatpickr("#arrivalTimeInput", {
+                enableTime: true,
+                noCalendar: true,           // Time only, no date
+                dateFormat: "H:i",          // 24-hour format: "20:45"
+                time_24hr: true,
+                allowInput: true,           // Allow manual typing
+                onClose: function(selectedDates, dateStr, instance) {
+                    updateArrivalTimeValue();
+                }
+            });
+
+            // Update hidden arrivalTime when timezone dropdown changes
+            document.getElementById('arrivalTimezone').addEventListener('change', updateArrivalTimeValue);
+
+            // Also update on manual input blur
+            document.getElementById('arrivalTimeInput').addEventListener('blur', updateArrivalTimeValue);
+
+            // Initialize EOD Time picker (time only)
+            eodTimePicker = flatpickr("#eodTimeInput", {
+                enableTime: true,
+                noCalendar: true,           // Time only, no date
+                dateFormat: "H:i",          // 24-hour format: "21:00"
+                time_24hr: true,
+                allowInput: true,           // Allow manual typing
+                onClose: function(selectedDates, dateStr, instance) {
+                    updateEodTimeValue();
+                }
+            });
+
+            // Update hidden eodTime when timezone dropdown changes
+            document.getElementById('eodTimezone').addEventListener('change', updateEodTimeValue);
+
+            // Also update on manual input blur
+            document.getElementById('eodTimeInput').addEventListener('blur', updateEodTimeValue);
         };
+
+        // Function to combine time + timezone into hidden eodTime field
+        function updateEodTimeValue() {
+            const timeValue = document.getElementById('eodTimeInput').value;
+            const tzValue = document.getElementById('eodTimezone').value;
+            if (timeValue) {
+                document.getElementById('eodTime').value = timeValue + ' ' + tzValue;
+            } else {
+                document.getElementById('eodTime').value = '';
+            }
+        }
+
+        // Function to combine time + timezone into hidden arrivalTime field
+        function updateArrivalTimeValue() {
+            const timeValue = document.getElementById('arrivalTimeInput').value;
+            const tzValue = document.getElementById('arrivalTimezone').value;
+            if (timeValue) {
+                document.getElementById('arrivalTime').value = timeValue + ' ' + tzValue;
+            } else {
+                document.getElementById('arrivalTime').value = '';
+            }
+        }
     </script>
 </body>
 </html>
