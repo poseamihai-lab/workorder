@@ -639,6 +639,12 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
                         <input type="hidden" id="arrivalTime">
                     </div>
                     <div class="input-group">
+                        <label>Arrival Time EST:</label>
+                        <input type="text" id="arrivalTimeEST" readonly style="background-color: #f0f0f0; cursor: default;">
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="input-group">
                         <label>EOD Time (local time):</label>
                         <div style="display: flex; gap: 8px;">
                             <input type="text" id="eodTimeInput" placeholder="21:00" style="flex: 1;">
@@ -658,6 +664,9 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
                             </select>
                         </div>
                         <input type="hidden" id="eodTime">
+                    </div>
+                    <div class="input-group">
+                        <!-- Empty placeholder for alignment with Arrival Time EST -->
                     </div>
                 </div>
 
@@ -2366,6 +2375,7 @@ We will visit the site to replace ${partDesc} on ${formattedDate}, at local stor
             document.getElementById('arrivalTimeInput').value = '';
             document.getElementById('arrivalTimezone').value = 'EST';
             document.getElementById('arrivalTime').value = '';
+            document.getElementById('arrivalTimeEST').value = '';
             // Clear EOD time picker and timezone dropdown
             if (eodTimePicker) {
                 eodTimePicker.clear();
@@ -2488,9 +2498,70 @@ We will visit the site to replace ${partDesc} on ${formattedDate}, at local stor
             const tzValue = document.getElementById('arrivalTimezone').value;
             if (timeValue) {
                 document.getElementById('arrivalTime').value = timeValue + ' ' + tzValue;
+                // Convert to EST and update the EST field
+                const estTime = convertToEST(timeValue, tzValue);
+                document.getElementById('arrivalTimeEST').value = estTime;
             } else {
                 document.getElementById('arrivalTime').value = '';
+                document.getElementById('arrivalTimeEST').value = '';
             }
+        }
+
+        // Convert time from any timezone to EST
+        function convertToEST(timeStr, fromTimezone) {
+            // Parse time (HH:MM format)
+            const timeMatch = timeStr.match(/(\d{1,2}):(\d{2})/);
+            if (!timeMatch) return '';
+
+            let hours = parseInt(timeMatch[1]);
+            let minutes = parseInt(timeMatch[2]);
+
+            // Timezone offsets relative to EST (positive = ahead of EST, negative = behind EST)
+            // EST is the baseline (0)
+            const tzOffsets = {
+                'EST': 0,
+                'EDT': 0,    // EDT and EST treated same for simplicity (both Eastern)
+                'CST': -1,   // Central is 1 hour behind Eastern
+                'CDT': -1,
+                'MST': -2,   // Mountain is 2 hours behind Eastern
+                'MDT': -2,
+                'PST': -3,   // Pacific is 3 hours behind Eastern
+                'PDT': -3,
+                'AST': 1,    // Atlantic is 1 hour ahead of Eastern
+                'ADT': 1,
+                'NST': 1.5,  // Newfoundland is 1.5 hours ahead of Eastern
+                'NDT': 1.5
+            };
+
+            const offset = tzOffsets[fromTimezone] || 0;
+
+            // Convert to EST by subtracting the offset
+            // If PST (-3), we add 3 hours to get EST
+            // If AST (+1), we subtract 1 hour to get EST
+            hours = hours - offset;
+
+            // Handle hour overflow/underflow
+            if (hours >= 24) {
+                hours -= 24;
+            } else if (hours < 0) {
+                hours += 24;
+            }
+
+            // Handle half-hour offset (Newfoundland)
+            if (offset === 1.5 || offset === -1.5) {
+                minutes -= (offset > 0 ? 30 : -30);
+                if (minutes >= 60) {
+                    minutes -= 60;
+                    hours += 1;
+                } else if (minutes < 0) {
+                    minutes += 60;
+                    hours -= 1;
+                }
+                if (hours >= 24) hours -= 24;
+                if (hours < 0) hours += 24;
+            }
+
+            return hours.toString().padStart(2, '0') + ':' + minutes.toString().padStart(2, '0') + ' EST';
         }
     </script>
 </body>
