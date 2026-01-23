@@ -1550,24 +1550,70 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
                     }
                 }
                 
-                // Extract location code (CTR format)
-                woData.locationCode = extractField(text, /Location:\s*\n?\s*(CTR\d+)/i) || '';
-                
-                // Extract full location/address - look for the pattern after Location code but before Short Description
-                // The address is on separate lines after "Location:         CTR0158"
-                const locMatch = text.match(/Location:\s+CTR\d+\s*\n([\s\S]*?)(?=\n\s*Short Description|$)/i);
-                if (locMatch) {
-                    // Get all lines after location code, trim each, and join with comma
-                    const addressLines = locMatch[1]
-                        .split('\n')
-                        .map(l => l.trim())
-                        .filter(l => l && l.length > 0 && !l.match(/^(Customer|BFG|Work Order|Priority|Assignment|Service|Service Time|Location|Short)/i))
-                        .filter(l => l !== ','); // Remove empty comma lines
-                    
-                    // Clean address: remove double commas, extra spaces
-                    woData.address = addressLines.join(', ').replace(/,\s*,/g, ',').trim();
+                // Extract location code (CTR or FGL format)
+                woData.locationCode = extractField(text, /Location:\s*\n?\s*((?:CTR|FGL)\d+)/i) || '';
+
+                // Extract full location/address - try multiple formats
+
+                // Format 1: ServiceNow report with separate Location Street and Location City fields
+                const streetMatch = text.match(/Location Street:\s*(.+?)(?=\n|$)/i);
+                const cityMatch = text.match(/Location City:\s*(.+?)(?=\n|$)/i);
+
+                if (streetMatch || cityMatch) {
+                    // ServiceNow report format with separate fields
+                    const addressParts = [];
+                    if (streetMatch && streetMatch[1].trim()) {
+                        addressParts.push(streetMatch[1].trim());
+                    }
+                    if (cityMatch && cityMatch[1].trim()) {
+                        addressParts.push(cityMatch[1].trim());
+                    }
+
+                    // Try to find province from Assigned to Region or other fields
+                    const regionMatch = text.match(/Assigned to Region:\s*(.+?)(?=\n|$)/i);
+                    if (regionMatch) {
+                        const region = regionMatch[1].trim();
+                        // Map region names to province names
+                        const regionToProvince = {
+                            'quebec region': 'Quebec',
+                            'ontario region': 'Ontario',
+                            'british columbia region': 'British Columbia',
+                            'alberta region': 'Alberta',
+                            'manitoba region': 'Manitoba',
+                            'saskatchewan region': 'Saskatchewan',
+                            'atlantic region': 'Nova Scotia',
+                            'nova scotia region': 'Nova Scotia',
+                            'new brunswick region': 'New Brunswick',
+                            'quebec': 'Quebec',
+                            'ontario': 'Ontario',
+                            'british columbia': 'British Columbia',
+                            'alberta': 'Alberta',
+                            'manitoba': 'Manitoba',
+                            'saskatchewan': 'Saskatchewan'
+                        };
+                        const province = regionToProvince[region.toLowerCase()];
+                        if (province && !addressParts.some(p => p.toLowerCase().includes(province.toLowerCase()))) {
+                            addressParts.push(province);
+                        }
+                    }
+
+                    woData.address = addressParts.join(', ');
+                } else {
+                    // Format 2: Original format - address lines after "Location: CTR/FGL####"
+                    const locMatch = text.match(/Location:\s+(?:CTR|FGL)\d+\s*\n([\s\S]*?)(?=\n\s*Short Description|$)/i);
+                    if (locMatch) {
+                        // Get all lines after location code, trim each, and join with comma
+                        const addressLines = locMatch[1]
+                            .split('\n')
+                            .map(l => l.trim())
+                            .filter(l => l && l.length > 0 && !l.match(/^(Customer|BFG|Work Order|Priority|Assignment|Service|Service Time|Location|Short)/i))
+                            .filter(l => l !== ','); // Remove empty comma lines
+
+                        // Clean address: remove double commas, extra spaces
+                        woData.address = addressLines.join(', ').replace(/,\s*,/g, ',').trim();
+                    }
                 }
-                
+
                 // Store clean location for CSV (without HTML/emoji)
                 woData.cleanLocation = woData.locationCode + (woData.address ? ' - ' + woData.address : '');
                 
