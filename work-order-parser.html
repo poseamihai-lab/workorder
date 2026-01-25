@@ -621,25 +621,19 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
                         <label>Arrival Time (local time):</label>
                         <div style="display: flex; gap: 8px;">
                             <input type="text" id="arrivalTimeInput" placeholder="20:45" style="flex: 1;">
-                            <select id="arrivalTimezone" style="width: 80px;">
-                                <option value="EST">EST</option>
-                                <option value="EDT">EDT</option>
-                                <option value="CST">CST</option>
-                                <option value="CDT">CDT</option>
-                                <option value="MST">MST</option>
-                                <option value="MDT">MDT</option>
-                                <option value="PST">PST</option>
-                                <option value="PDT">PDT</option>
-                                <option value="AST">AST</option>
-                                <option value="ADT">ADT</option>
-                                <option value="NST">NST</option>
-                                <option value="NDT">NDT</option>
+                            <select id="arrivalTimezone" style="width: auto;">
+                                <option value="ET">ET (Eastern - ON, QC)</option>
+                                <option value="CT">CT (Central - MB, SK)</option>
+                                <option value="MT">MT (Mountain - AB, NT)</option>
+                                <option value="PT">PT (Pacific - BC, YT)</option>
+                                <option value="AT">AT (Atlantic - NS, NB, PE)</option>
+                                <option value="NT">NT (Newfoundland - NL)</option>
                             </select>
                         </div>
                         <input type="hidden" id="arrivalTime">
                     </div>
                     <div class="input-group">
-                        <label>Arrival Time EST:</label>
+                        <label>Arrival Time ET:</label>
                         <input type="text" id="arrivalTimeEST" readonly style="background-color: #f0f0f0; cursor: default;">
                     </div>
                 </div>
@@ -648,19 +642,13 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
                         <label>EOD Time (local time):</label>
                         <div style="display: flex; gap: 8px;">
                             <input type="text" id="eodTimeInput" placeholder="21:00" style="flex: 1;">
-                            <select id="eodTimezone" style="width: 80px;">
-                                <option value="EST">EST</option>
-                                <option value="EDT">EDT</option>
-                                <option value="CST">CST</option>
-                                <option value="CDT">CDT</option>
-                                <option value="MST">MST</option>
-                                <option value="MDT">MDT</option>
-                                <option value="PST">PST</option>
-                                <option value="PDT">PDT</option>
-                                <option value="AST">AST</option>
-                                <option value="ADT">ADT</option>
-                                <option value="NST">NST</option>
-                                <option value="NDT">NDT</option>
+                            <select id="eodTimezone" style="width: auto;">
+                                <option value="ET">ET (Eastern - ON, QC)</option>
+                                <option value="CT">CT (Central - MB, SK)</option>
+                                <option value="MT">MT (Mountain - AB, NT)</option>
+                                <option value="PT">PT (Pacific - BC, YT)</option>
+                                <option value="AT">AT (Atlantic - NS, NB, PE)</option>
+                                <option value="NT">NT (Newfoundland - NL)</option>
                             </select>
                         </div>
                         <input type="hidden" id="eodTime">
@@ -781,8 +769,8 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
         let eodTimePicker = null;
         let arrivalTimePicker = null;
 
-        // Store current timezone (from parsed province, default EST)
-        let currentTimezone = 'EST';
+        // Store current timezone (from parsed province, default ET)
+        let currentTimezone = 'ET';
 
         // Store parsed work order data
         let woData = {
@@ -1077,24 +1065,24 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
             return date >= secondSundayMarch && date < firstSundayNovember;
         }
 
-        // Get timezone abbreviation
-        function getTimezoneAbbr(province, isDST) {
+        // Get timezone abbreviation for province (simplified Canadian zones)
+        function getTimezoneAbbr(province) {
             const abbrs = {
-                'Ontario': isDST ? 'EDT' : 'EST',
-                'Quebec': isDST ? 'EDT' : 'EST',
-                'Manitoba': isDST ? 'CDT' : 'CST',
-                'Saskatchewan': 'CST',
-                'Alberta': isDST ? 'MDT' : 'MST',
-                'British Columbia': isDST ? 'PDT' : 'PST',
-                'Nova Scotia': isDST ? 'ADT' : 'AST',
-                'New Brunswick': isDST ? 'ADT' : 'AST',
-                'Newfoundland and Labrador': isDST ? 'NDT' : 'NST',
-                'Prince Edward Island': isDST ? 'ADT' : 'AST',
-                'Northwest Territories': 'MST',
-                'Yukon': 'PST',
-                'Nunavut': isDST ? 'CDT' : 'CST'
+                'Ontario': 'ET',
+                'Quebec': 'ET',
+                'Manitoba': 'CT',
+                'Saskatchewan': 'CT',
+                'Alberta': 'MT',
+                'British Columbia': 'PT',
+                'Nova Scotia': 'AT',
+                'New Brunswick': 'AT',
+                'Newfoundland and Labrador': 'NT',
+                'Prince Edward Island': 'AT',
+                'Northwest Territories': 'MT',
+                'Yukon': 'PT',
+                'Nunavut': 'CT'
             };
-            return abbrs[province] || (isDST ? 'EDT' : 'EST');
+            return abbrs[province] || 'ET';
         }
 
         // Unified time string parser - handles multiple formats
@@ -1369,7 +1357,7 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
                     // Extract province and get timezone (now that we have the address)
                     const province = extractProvinceFromAddress(woData.address);
                     const isDST = isDaylightSavingTime(new Date());
-                    const tzAbbr = province ? getTimezoneAbbr(province, isDST) : 'EST';
+                    const tzAbbr = province ? getTimezoneAbbr(province) : 'ET';
                     currentTimezone = tzAbbr; // Store for time pickers
                     document.getElementById('eodTimezone').value = tzAbbr;
                     document.getElementById('arrivalTimezone').value = tzAbbr;
@@ -1468,7 +1456,7 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
                         
                         const province = extractProvinceFromAddress(woData.address);
                         const isDST = isDaylightSavingTime(new Date(year, month - 1, parseInt(day)));
-                        const tzAbbr = province ? getTimezoneAbbr(province, isDST) : 'EST';
+                        const tzAbbr = province ? getTimezoneAbbr(province) : 'ET';
                         currentTimezone = tzAbbr; // Store for time pickers
                         document.getElementById('eodTimezone').value = tzAbbr;
                         document.getElementById('arrivalTimezone').value = tzAbbr;
@@ -1669,9 +1657,9 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
                             arrivalTimePicker.setDate(arrivalTimeOnly, false);
                         }
                         document.getElementById('arrivalTimeInput').value = arrivalTimeOnly;
-                        document.getElementById('arrivalTimezone').value = 'EST';
-                        currentTimezone = 'EST';
-                        document.getElementById('eodTimezone').value = 'EST';
+                        document.getElementById('arrivalTimezone').value = 'ET';
+                        currentTimezone = 'ET';
+                        document.getElementById('eodTimezone').value = 'ET';
                         updateArrivalTimeValue();
                         // Don't auto-calculate EOD - let user enter it manually or from email
                     }
@@ -1764,7 +1752,7 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
                         
                         const province = extractProvinceFromAddress(woData.address);
                         const isDST = isDaylightSavingTime(new Date(year, month - 1, parseInt(day)));
-                        const tzAbbr = province ? getTimezoneAbbr(province, isDST) : 'EST';
+                        const tzAbbr = province ? getTimezoneAbbr(province) : 'ET';
                         currentTimezone = tzAbbr; // Store for time pickers
                         document.getElementById('eodTimezone').value = tzAbbr;
                         document.getElementById('arrivalTimezone').value = tzAbbr;
@@ -2062,9 +2050,9 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
                 if (hours > 12) hours = hours - 12;
                 if (hours === 0) hours = 12;
 
-                return hours + ':' + mins.toString().padStart(2, '0') + ' ' + ampm + ' EST';
+                return hours + ':' + mins.toString().padStart(2, '0') + ' ' + ampm + ' ET';
             }
-            return '9:00 PM EST';
+            return '9:00 PM ET';
         }
 
         function extractField(text, pattern) {
@@ -2419,7 +2407,7 @@ We will visit the site to replace ${partDesc} on ${formattedDate}, at local stor
                 arrivalTimePicker.clear();
             }
             document.getElementById('arrivalTimeInput').value = '';
-            document.getElementById('arrivalTimezone').value = 'EST';
+            document.getElementById('arrivalTimezone').value = 'ET';
             document.getElementById('arrivalTime').value = '';
             document.getElementById('arrivalTimeEST').value = '';
             // Clear EOD time picker and timezone dropdown
@@ -2427,9 +2415,9 @@ We will visit the site to replace ${partDesc} on ${formattedDate}, at local stor
                 eodTimePicker.clear();
             }
             document.getElementById('eodTimeInput').value = '';
-            document.getElementById('eodTimezone').value = 'EST';
+            document.getElementById('eodTimezone').value = 'ET';
             document.getElementById('eodTime').value = '';
-            currentTimezone = 'EST'; // Reset timezone to default
+            currentTimezone = 'ET'; // Reset timezone to default
             // Clear Flatpickr date picker
             if (execDatePicker) {
                 execDatePicker.clear();
@@ -2544,7 +2532,7 @@ We will visit the site to replace ${partDesc} on ${formattedDate}, at local stor
             const tzValue = document.getElementById('arrivalTimezone').value;
             if (timeValue) {
                 document.getElementById('arrivalTime').value = timeValue + ' ' + tzValue;
-                // Convert to EST and update the EST field
+                // Convert to ET and update the ET field
                 const estTime = convertToEST(timeValue, tzValue);
                 document.getElementById('arrivalTimeEST').value = estTime;
             } else {
@@ -2553,7 +2541,7 @@ We will visit the site to replace ${partDesc} on ${formattedDate}, at local stor
             }
         }
 
-        // Convert time from any timezone to EST
+        // Convert time from any timezone to ET (Eastern Time)
         function convertToEST(timeStr, fromTimezone) {
             // Parse time (HH:MM format)
             const timeMatch = timeStr.match(/(\d{1,2}):(\d{2})/);
@@ -2562,40 +2550,43 @@ We will visit the site to replace ${partDesc} on ${formattedDate}, at local stor
             let hours = parseInt(timeMatch[1]);
             let minutes = parseInt(timeMatch[2]);
 
-            // Timezone offsets relative to EST (positive = ahead of EST, negative = behind EST)
-            // EST is the baseline (0)
+            // Timezone offsets relative to Eastern Time (positive = ahead of ET, negative = behind ET)
+            // ET (Eastern) is the baseline (0)
+            // Includes both new simplified codes and legacy codes for input parsing
             const tzOffsets = {
-                'EST': 0,
-                'EDT': 0,    // EDT and EST treated same for simplicity (both Eastern)
-                'CST': -1,   // Central is 1 hour behind Eastern
-                'CDT': -1,
-                'MST': -2,   // Mountain is 2 hours behind Eastern
-                'MDT': -2,
-                'PST': -3,   // Pacific is 3 hours behind Eastern
-                'PDT': -3,
-                'AST': 1,    // Atlantic is 1 hour ahead of Eastern
-                'ADT': 1,
-                'NST': 1.5,  // Newfoundland is 1.5 hours ahead of Eastern
-                'NDT': 1.5
+                // New simplified codes (used by dropdown)
+                'ET': 0,     // Eastern Time (Ontario, Quebec)
+                'CT': -1,    // Central Time (Manitoba, Saskatchewan)
+                'MT': -2,    // Mountain Time (Alberta)
+                'PT': -3,    // Pacific Time (British Columbia)
+                'AT': 1,     // Atlantic Time (Nova Scotia, New Brunswick, PEI)
+                'NT': 1.5,   // Newfoundland Time (Newfoundland and Labrador)
+                // Legacy codes (for parsing input text)
+                'EST': 0, 'EDT': 0,
+                'CST': -1, 'CDT': -1,
+                'MST': -2, 'MDT': -2,
+                'PST': -3, 'PDT': -3,
+                'AST': 1, 'ADT': 1,
+                'NST': 1.5, 'NDT': 1.5
             };
 
             const offset = tzOffsets[fromTimezone] || 0;
 
-            // Convert to EST by subtracting the offset
-            // If PST (-3), we add 3 hours to get EST
-            // If AST (+1), we subtract 1 hour to get EST
-            hours = hours - offset;
+            // Handle the offset in two parts: integer hours and half-hour (for Newfoundland)
+            const hourOffset = Math.trunc(offset);  // Integer part only (-1, 0, 1, etc.)
+            const hasHalfHour = Math.abs(offset) % 1 !== 0;  // True for NT/Newfoundland (1.5)
 
-            // Handle hour overflow/underflow
-            if (hours >= 24) {
-                hours -= 24;
-            } else if (hours < 0) {
-                hours += 24;
-            }
+            // Subtract the integer hour portion
+            hours = hours - hourOffset;
 
-            // Handle half-hour offset (Newfoundland)
-            if (offset === 1.5 || offset === -1.5) {
-                minutes -= (offset > 0 ? 30 : -30);
+            // Handle the 30-minute offset if applicable (Newfoundland)
+            if (hasHalfHour) {
+                if (offset > 0) {
+                    minutes -= 30;
+                } else {
+                    minutes += 30;
+                }
+                // Handle minute underflow/overflow
                 if (minutes >= 60) {
                     minutes -= 60;
                     hours += 1;
@@ -2603,11 +2594,16 @@ We will visit the site to replace ${partDesc} on ${formattedDate}, at local stor
                     minutes += 60;
                     hours -= 1;
                 }
-                if (hours >= 24) hours -= 24;
-                if (hours < 0) hours += 24;
             }
 
-            return hours.toString().padStart(2, '0') + ':' + minutes.toString().padStart(2, '0') + ' EST';
+            // Handle hour overflow/underflow after all adjustments
+            if (hours >= 24) {
+                hours -= 24;
+            } else if (hours < 0) {
+                hours += 24;
+            }
+
+            return hours.toString().padStart(2, '0') + ':' + minutes.toString().padStart(2, '0') + ' ET';
         }
     </script>
 </body>
