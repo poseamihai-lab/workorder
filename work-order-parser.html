@@ -590,7 +590,18 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
 
                 <div class="input-group">
                     <label>Contact Name:</label>
-                    <input type="text" id="contactName" placeholder="e.g., Jaime">
+                    <input type="text" id="contactName" placeholder="e.g., Jaime" list="contactNamesList">
+                    <datalist id="contactNamesList">
+                        <option value="Haseeb Rehman">
+                        <option value="Mihai Posea">
+                        <option value="Alex Grenier">
+                        <option value="Horia Telehoiu">
+                        <option value="Icy Ma">
+                        <option value="Mike McMullen">
+                        <option value="Maitreyi Tandel">
+                        <option value="Jaime Duran">
+                        <option value="Jorge Soares">
+                    </datalist>
                 </div>
 
                 <div class="input-group">
@@ -1950,11 +1961,16 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
             if (arrivalTimeField && execDateField) {
                 fetchContactFromAPI(arrivalTimeField, execDateField).then(contactInfo => {
                     if (contactInfo) {
-                        document.getElementById('contactName').value = contactInfo.name;
-                        document.getElementById('contactPhone').value = contactInfo.phone;
-                        woData.contactName = contactInfo.name;
-                        woData.contactPhone = contactInfo.phone;
-                        document.getElementById('dispContact').textContent = contactInfo.name + ' ' + contactInfo.phone;
+                        // Only auto-fill from API if fields are empty (user manual entry takes priority)
+                        const currentName = document.getElementById('contactName').value;
+                        const currentPhone = document.getElementById('contactPhone').value;
+                        if (!currentName && !currentPhone) {
+                            document.getElementById('contactName').value = contactInfo.name;
+                            document.getElementById('contactPhone').value = contactInfo.phone;
+                            woData.contactName = contactInfo.name;
+                            woData.contactPhone = contactInfo.phone;
+                            document.getElementById('dispContact').textContent = contactInfo.name + ' ' + contactInfo.phone;
+                        }
                     }
                 });
             }
@@ -2469,12 +2485,33 @@ We will visit the site to replace ${partDesc} on ${formattedDate}, at local stor
             });
         }
 
+        // Contact name to phone number mapping
+        const contactPhoneMap = {
+            'Haseeb Rehman': '+16476578108',
+            'Mihai Posea': '+14168071245',
+            'Alex Grenier': '+12893141579',
+            'Horia Telehoiu': '+14165707271',
+            'Icy Ma': '+14167972050',
+            'Mike McMullen': '+15194741631',
+            'Maitreyi Tandel': '+14372423320',
+            'Jaime Duran': '+19052592083',
+            'Jorge Soares': '+14168360713'
+        };
+
         // Set default day on load
         window.onload = function() {
             const today = new Date();
             const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
             document.getElementById('dayOfWeek').value = days[today.getDay()];
             initializePartsDatabase();
+
+            // Auto-fill phone number when contact name is selected from list
+            document.getElementById('contactName').addEventListener('input', function() {
+                const selectedName = this.value;
+                if (contactPhoneMap[selectedName]) {
+                    document.getElementById('contactPhone').value = contactPhoneMap[selectedName];
+                }
+            });
 
             // Initialize Flatpickr date picker
             execDatePicker = flatpickr("#execDate", {
