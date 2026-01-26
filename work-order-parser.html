@@ -566,7 +566,12 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
                 <div class="section-divider"></div>
 
                 <!-- Manual Input Fields -->
-                <h3>PART & CONTACT DETAILS</h3>
+                <h3>DESCRIPTION & PART & CONTACT DETAILS ( update as needed )</h3>
+
+                <div class="input-group">
+                    <label>Description:</label>
+                    <input type="text" id="shortDesc" placeholder="e.g., Hard disk failure in VRTX server">
+                </div>
 
                 <div class="input-group">
                     <label>Select From Left Side or Enter Part Code:</label>
@@ -595,7 +600,7 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
 
                 <div class="section-divider"></div>
 
-                <h3>DATE & TIME</h3>
+                <h3>DATE & TIME ( update as needed )</h3>
 
                 <div class="row">
                     <div class="input-group">
@@ -845,11 +850,16 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
                 document.getElementById('partDesc').classList.add('input-valid');
             }
 
-            // Check Short Description
-            if (isEmpty(woData.shortDesc)) {
-                missingFields.push('Short Description');
+            // Check Description
+            const shortDescInput = document.getElementById('shortDesc').value;
+            if (isEmpty(shortDescInput)) {
+                missingFields.push('Description');
+                document.getElementById('shortDesc').classList.add('input-missing');
+                document.getElementById('shortDesc').classList.remove('input-valid');
             } else {
-                validFields.push('Short Description');
+                validFields.push('Description');
+                document.getElementById('shortDesc').classList.remove('input-missing');
+                document.getElementById('shortDesc').classList.add('input-valid');
             }
 
             // Check Province
@@ -1913,6 +1923,7 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
             document.getElementById('dispProvince').textContent = woData.province || '-';
             
             document.getElementById('dispDesc').textContent = woData.shortDesc || '-';
+            document.getElementById('shortDesc').value = woData.shortDesc || '';
             document.getElementById('dispDateTime').textContent = woData.requiredDateTime || '-';
             document.getElementById('dispContact').textContent = (woData.contactName && woData.contactPhone) ? woData.contactName + ' ' + woData.contactPhone : '-';
 
@@ -2080,7 +2091,7 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
 
             const fullPart = partDesc + ' - ' + partCode;
             const locationCode = woData.locationCode || '[LOCATION]';
-            const shortDesc = woData.shortDesc || '[DESCRIPTION]';
+            const shortDesc = document.getElementById('shortDesc').value || '[DESCRIPTION]';
             
             // Check if this is a hard drive replacement (contains keywords like "disk", "drive", "storage")
             const isHardDrive = partDesc.toLowerCase().includes('disk') || 
@@ -2182,7 +2193,7 @@ Thank you`;
             // Determine replacement type for final note
             const replacementType = isHardDrive ? 'hard disk' : partDesc.split(' ')[0].toLowerCase();
             
-            const output5 = `BFG Tracker Ticket Subject Line: ${woData.wotNumber} - ${woData.woNumber} - ${woData.locationCode} // ${woData.incNumber} - ${woData.shortDesc}
+            const output5 = `BFG Tracker Ticket Subject Line: ${woData.wotNumber} - ${woData.woNumber} - ${woData.locationCode} // ${woData.incNumber} - ${shortDesc}
 
 ---
 
@@ -2195,7 +2206,7 @@ Dell Part Description: ${fullPart}
 Special instructions for BFG Technician: Once onsite tech reaches the site, please call ${contactName} ${contactPhone} first. Do not perform any work without contacting ${contactName}.
 
 3. Added the following internal work note to ticket:
-${woData.shortDesc}
+${shortDesc}
 Our tech needs to bring ${fullPart}
 Our tech needs to be onsite ${execDate} at store local time of ${arrivalTime} after EOD.
 Once onsite tech reaches the site, please call ${contactName} ${contactPhone} first. Do not perform any work without contacting ${contactName}.
@@ -2203,7 +2214,7 @@ Once onsite tech reaches the site, please call ${contactName} ${contactPhone} fi
 4. Sent the following email to Dispatch team:
 Hi Dispatch Team,
 
-${woData.shortDesc}
+${shortDesc}
 Our tech needs to bring ${fullPart}
 Our tech needs to be onsite ${execDate} at store local time of ${arrivalTime} after EOD.
 Once onsite tech reaches the site, please call ${contactName} ${contactPhone} first. Do not perform any work without contacting ${contactName}.
@@ -2255,7 +2266,7 @@ We will visit the site to replace ${partDesc} on ${formattedDate}, at local stor
             const wotNumber = document.getElementById('dispWOT').textContent;
             const woNumber = document.getElementById('dispWO').textContent;
             const incNumber = document.getElementById('dispINC').textContent;
-            const shortDesc = document.getElementById('dispDesc').textContent;
+            const shortDesc = document.getElementById('shortDesc').value || document.getElementById('dispDesc').textContent;
             
             // ProjeQtor CSV Format (comma-separated):
             // name,ticket type,project,external reference,issuer,requestor,description,status,resolution,responsible,store number,Part 1 Number
@@ -2402,6 +2413,7 @@ We will visit the site to replace ${partDesc} on ${formattedDate}, at local stor
             document.getElementById('diskSlot').value = '';
             document.getElementById('contactName').value = '';
             document.getElementById('contactPhone').value = '';
+            document.getElementById('shortDesc').value = '';
             // Clear Arrival time picker and timezone dropdown
             if (arrivalTimePicker) {
                 arrivalTimePicker.clear();
@@ -2446,7 +2458,7 @@ We will visit the site to replace ${partDesc} on ${formattedDate}, at local stor
 
             // Reset validation states
             document.getElementById('validationWarning').style.display = 'none';
-            const inputFields = ['partCode', 'partDesc', 'contactName', 'contactPhone', 'execDate', 'arrivalTimeInput', 'eodTimeInput'];
+            const inputFields = ['partCode', 'partDesc', 'contactName', 'contactPhone', 'shortDesc', 'execDate', 'arrivalTimeInput', 'eodTimeInput'];
             inputFields.forEach(id => {
                 const el = document.getElementById(id);
                 el.classList.remove('input-missing', 'input-valid');
