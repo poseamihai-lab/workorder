@@ -998,7 +998,8 @@ Line 4: Paste here from Service now the WOT number (bottom of the ticket)"></tex
 
             // Description
             const dispDesc = document.getElementById('dispDesc');
-            dispDesc.className = isEmpty(woData.shortDesc) ? 'field-missing' : 'field-valid';
+            const shortDescValue = document.getElementById('shortDesc').value;
+            dispDesc.className = isEmpty(shortDescValue) ? 'field-missing' : 'field-valid';
 
             // Required Date/Time
             const dispDateTime = document.getElementById('dispDateTime');
