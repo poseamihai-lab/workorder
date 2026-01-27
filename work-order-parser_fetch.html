@@ -1,0 +1,2764 @@
+<!--
+Work Order Parser v1.2 (Auto-Fetch from ServiceNow)
+© 2026 Mihai Posea
+Proprietary - All Rights Reserved
+
+This version includes automatic ServiceNow API integration.
+Just paste a WO number (e.g., WO1932613) and click PARSE - data is fetched automatically.
+Contact info is pulled from the scheduling API based on date/time.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Work Order Generator (with ServiceNow Fetch)</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            margin: 0;
+            padding: 15px;
+            background: #e9ecef;
+            min-height: 100vh;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin: 10px 0 20px 0;
+        }
+
+        .main-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            max-width: 100%;
+            margin: 0 auto;
+        }
+
+        @media (max-width: 1100px) {
+            .main-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .panel {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .panel h2 {
+            margin: 0 0 15px 0;
+            color: #444;
+            font-size: 16px;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 8px;
+        }
+
+        .panel h3 {
+            margin: 0 0 10px 0;
+            color: #555;
+            font-size: 14px;
+            background: #f8f9fa;
+            padding: 8px;
+            border-radius: 4px;
+        }
+
+        .input-section {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .input-group label {
+            font-weight: 600;
+            color: #555;
+            font-size: 12px;
+        }
+
+        .input-group label small {
+            font-weight: 400;
+            font-size: 10px;
+            display: block;
+            margin-top: 3px;
+            color: #777;
+        }
+
+        .input-group input,
+        .input-group textarea,
+        .input-group select {
+            padding: 8px 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        .input-group input:focus,
+        .input-group textarea:focus {
+            outline: none;
+            border-color: #007bff;
+        }
+
+        .paste-area {
+            min-height: 100px;
+            font-family: 'Consolas', monospace;
+            font-size: 12px;
+            resize: vertical;
+            line-height: 1.6;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .btn-input {
+            background: #007bff;
+            color: white;
+            font-size: 16px;
+            width: 100%;
+            padding: 12px;
+        }
+
+        .btn-input:hover {
+            background: #0056b3;
+        }
+
+        .btn-copy {
+            background: #28a745;
+            color: white;
+            font-size: 11px;
+            padding: 6px 12px;
+        }
+
+        .btn-copy:hover {
+            background: #1e7e34;
+        }
+
+        .btn-clear {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-clear:hover {
+            background: #c82333;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .outputs-container {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 15px;
+        }
+
+        @media (max-width: 900px) {
+            .outputs-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .output-panel {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .output-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #17a2b8;
+        }
+
+        .output-header h3 {
+            margin: 0;
+            color: #333;
+            font-size: 13px;
+            background: none;
+            padding: 0;
+        }
+
+        .output-box {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            padding: 12px;
+            min-height: 200px;
+            max-height: 350px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            font-family: 'Consolas', monospace;
+            font-size: 11px;
+            line-height: 1.5;
+        }
+
+        .row {
+            display: flex;
+            gap: 10px;
+        }
+
+        .row .input-group {
+            flex: 1;
+        }
+
+        .copy-notification {
+            display: none;
+            background: #28a745;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 6px;
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            font-weight: 600;
+        }
+
+        .extracted-info {
+            background: #e7f3ff;
+            border: 1px solid #b3d7ff;
+            border-radius: 4px;
+            padding: 10px;
+            font-size: 11px;
+            margin-bottom: 15px;
+        }
+
+        .extracted-info div {
+            margin: 3px 0;
+        }
+
+        .extracted-info strong {
+            color: #0056b3;
+        }
+
+        .section-divider {
+            border-top: 1px solid #eee;
+            margin: 15px 0;
+            padding-top: 15px;
+        }
+
+        .urgent-panel {
+            border: 3px solid #dc3545;
+            box-shadow: 0 2px 15px rgba(220, 53, 69, 0.3);
+        }
+
+        .urgent-header {
+            border-bottom: 2px solid #dc3545 !important;
+        }
+
+        .urgent-badge {
+            background: #dc3545;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 700;
+            margin-right: 8px;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+
+        .autocomplete-container {
+            position: relative;
+            width: 100%;
+        }
+
+        .autocomplete-list {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #ddd;
+            border-top: none;
+            border-radius: 0 0 4px 4px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 100;
+            display: none;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .autocomplete-list.show {
+            display: block;
+        }
+
+        .autocomplete-item {
+            padding: 8px 10px;
+            cursor: pointer;
+            font-size: 12px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .autocomplete-item:hover,
+        .autocomplete-item.selected {
+            background: #e7f3ff;
+        }
+
+        .parts-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+            margin-top: 10px;
+        }
+
+        .parts-table thead {
+            background: #f8f9fa;
+            position: sticky;
+            top: 0;
+        }
+
+        .parts-table th,
+        .parts-table td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .parts-table th {
+            font-weight: 600;
+            color: #333;
+            background: #e9ecef;
+        }
+
+        .parts-table tbody tr:hover {
+            background: #f8f9fa;
+            cursor: pointer;
+        }
+
+        .parts-table .part-code {
+            font-weight: 600;
+            color: #007bff;
+        }
+
+        .parts-filter {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .parts-filter input {
+            flex: 1;
+            padding: 8px 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .parts-filter select {
+            padding: 8px 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .parts-panel {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .btn-insert {
+            background: #17a2b8;
+            color: white;
+            font-size: 11px;
+            padding: 4px 8px;
+        }
+
+        .btn-insert:hover {
+            background: #138496;
+        }
+
+        .parts-badge {
+            background: #17a2b8;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: 600;
+            margin-left: 5px;
+        }
+
+        /* Validation States */
+        .field-valid {
+            color: #155724;
+            background-color: #d4edda;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+
+        .field-missing {
+            color: #856404;
+            background-color: #fff3cd;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+
+        .input-missing {
+            border: 2px solid #ffc107 !important;
+            background-color: #fffbeb !important;
+        }
+
+        .input-valid {
+            border: 2px solid #28a745 !important;
+        }
+
+        .warning-banner {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-left: 4px solid #ffc107;
+            color: #856404;
+            padding: 12px 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+
+        .warning-banner h4 {
+            margin: 0 0 8px 0;
+            font-size: 14px;
+        }
+
+        .warning-banner ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+
+        .warning-banner li {
+            margin: 3px 0;
+            font-size: 13px;
+        }
+
+        .validation-summary {
+            display: flex;
+            gap: 15px;
+            margin-top: 8px;
+            font-size: 12px;
+        }
+
+        .validation-summary .valid-count {
+            color: #155724;
+        }
+
+        .validation-summary .missing-count {
+            color: #856404;
+        }
+
+        /* ServiceNow Auto-Fetch Status Styles */
+        .fetch-status {
+            padding: 10px 15px;
+            border-radius: 4px;
+            font-size: 13px;
+            margin-bottom: 10px;
+            display: none;
+        }
+
+        .fetch-status.loading {
+            display: block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .fetch-status.success {
+            display: block;
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .fetch-status.error {
+            display: block;
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+    <!-- Flatpickr Date Picker -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+</head>
+<body>
+    <h1>Work Order Generator <span style="font-size: 12px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 4px 10px; border-radius: 4px; vertical-align: middle;">Auto-Fetch Enabled</span></h1>
+
+    <div class="main-container">
+        <!-- LEFT PANEL - PARTS DATABASE -->
+        <div class="panel">
+            <h2>DELL PARTS DATABASE <span class="parts-badge" id="partCountBadge">17 Parts</span></h2>
+
+            <!-- Documentation Links -->
+            <div style="margin-bottom: 15px;">
+                <h4 style="margin: 0 0 5px 0; font-size: 12px; color: #666;">Documentation</h4>
+                <a href="https://bfgca.sharepoint.com/:f:/s/BFGCCSupport/IgCthhQKtaJsS61cjxYjYU7JAXyfckogDXJPk5oDscN3yh0?e=RgoXsc" target="_blank" style="font-size: 13px;">HDD disk replacement in Dell VRTX server</a>
+            </div>
+
+            <!-- Auto-complete Search -->
+            <div class="input-group" style="margin-bottom: 15px;">
+                <label>Quick Part Search (Auto-complete)
+                    <small>Start typing part code or description</small>
+                </label>
+                <div class="autocomplete-container">
+                    <input type="text" id="partSearch" placeholder="e.g., CBF-DEL-HD or 1.8TB..." 
+                           oninput="filterPartsList(this.value)" 
+                           onfocus="showPartsDropdown()" 
+                           onkeydown="handlePartSearchKeydown(event)">
+                    <div class="autocomplete-list" id="partsList"></div>
+                </div>
+            </div>
+
+            <div class="section-divider"></div>
+
+            <!-- Category Filter -->
+            <div class="parts-filter">
+                <input type="text" id="tableFilter" placeholder="Filter by code or description..." 
+                       oninput="filterPartsTable()">
+                <select id="categoryFilter" onchange="filterPartsTable()">
+                    <option value="">All Categories</option>
+                    <option value="AC">Accessories</option>
+                    <option value="BA">Batteries</option>
+                    <option value="CB">Cables</option>
+                    <option value="HD">Hard Drives</option>
+                    <option value="PW">Power Supply</option>
+                    <option value="SV">Servers</option>
+                </select>
+            </div>
+
+            <!-- Parts Reference Table -->
+            <div class="parts-panel">
+                <table class="parts-table" id="partsTable">
+                    <thead>
+                        <tr>
+                            <th style="width: 35%;">Part Code</th>
+                            <th style="width: 65%;">Description</th>
+                        </tr>
+                    </thead>
+                    <tbody id="partsTableBody">
+                        <!-- Populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- RIGHT PANEL - INPUTS -->
+        <div class="panel">
+            <h2>INPUT SECTION</h2>
+
+            <div class="input-section">
+                <!-- Fetch Status (shown when auto-fetching from ServiceNow) -->
+                <div class="fetch-status" id="fetchStatus"></div>
+
+                <!-- Paste Area -->
+                <div class="input-group">
+                    <label>PASTE DETAILS HERE
+                        <small>(FORWARDED EMAIL FROM SERVICE NOTIFICATION, WOT NUMBER, CONTACT INFO, REQUESTED DATE AND TIME FROM SERVICE NOW FOR THE SERVICE CALL)</small>
+                    </label>
+                    <textarea class="paste-area" id="pasteInput" placeholder="Paste any of the following:
+• Just a WO number (e.g., WO1932613) - auto-fetches from ServiceNow
+• Exported PDF from ServiceNow
+• Forwarded email from Service Now Notification
+• Any text containing WO#, WOT#, dates, contact info
+
+The system will auto-detect WO numbers and fetch data from ServiceNow automatically."></textarea>
+                </div>
+
+                <button class="btn btn-input" onclick="parseWorkOrder()">PARSE WORK ORDER</button>
+
+                <!-- Extracted Info Display -->
+                <div class="extracted-info" id="extractedInfo">
+                    <div><strong>WOT#:</strong> <span id="dispWOT">-</span></div>
+                    <div><strong>WO#:</strong> <span id="dispWO">-</span></div>
+                    <div><strong>INC#:</strong> <span id="dispINC">-</span></div>
+                    <div><strong>Store Number:</strong> <span id="dispStoreNumber">-</span></div>
+                    <div><strong>Location (Confirm Closing Time):</strong> <span id="dispLoc">-</span></div>
+                    <div><strong>Province:</strong> <span id="dispProvince">-</span></div>
+                    <div><strong>Description:</strong> <span id="dispDesc">-</span></div>
+                    <div><strong>Required Date/Time:</strong> <span id="dispDateTime">-</span></div>
+                    <div><strong>Contact:</strong> <span id="dispContact">-</span></div>
+                </div>
+
+                <div class="section-divider"></div>
+
+                <!-- Manual Input Fields -->
+                <h3>DESCRIPTION & PART & CONTACT DETAILS ( update as needed )</h3>
+
+                <div class="input-group">
+                    <label>Description:</label>
+                    <input type="text" id="shortDesc" placeholder="e.g., Hard disk failure in VRTX server">
+                </div>
+
+                <div class="input-group">
+                    <label>Select From Left Side or Enter Part Code:</label>
+                    <input type="text" id="partCode" placeholder="e.g., CBF-DEL-HD-XJ233">
+                </div>
+
+                <div class="input-group">
+                    <label>Part Description:</label>
+                    <input type="text" id="partDesc" placeholder="e.g., 1.8TB hard disk DP/N 0GP3FR or 0JY57X...">
+                </div>
+
+                <div class="input-group">
+                    <label>Disk Slot:</label>
+                    <input type="text" id="diskSlot" placeholder="e.g., 0:0:0">
+                </div>
+
+                <div class="input-group">
+                    <label>Contact Name:</label>
+                    <input type="text" id="contactName" placeholder="e.g., Jaime" list="contactNamesList">
+                    <datalist id="contactNamesList">
+                        <option value="Haseeb Rehman">
+                        <option value="Mihai Posea">
+                        <option value="Alex Grenier">
+                        <option value="Horia Telehoiu">
+                        <option value="Icy Ma">
+                        <option value="Mike McMullen">
+                        <option value="Maitreyi Tandel">
+                        <option value="Jaime Duran">
+                        <option value="Jorge Soares">
+                    </datalist>
+                </div>
+
+                <div class="input-group">
+                    <label>Contact Phone:</label>
+                    <input type="text" id="contactPhone" placeholder="e.g., 905-259-2063">
+                </div>
+
+                <div class="section-divider"></div>
+
+                <h3>DATE & TIME ( update as needed )</h3>
+
+                <div class="row">
+                    <div class="input-group">
+                        <label>Date:</label>
+                        <input type="text" id="execDate" placeholder="e.g., December 30, 2025">
+                    </div>
+                    <div class="input-group">
+                        <label>Day of Week:</label>
+                        <select id="dayOfWeek">
+                            <option value="Monday">Monday</option>
+                            <option value="Tuesday">Tuesday</option>
+                            <option value="Wednesday">Wednesday</option>
+                            <option value="Thursday">Thursday</option>
+                            <option value="Friday">Friday</option>
+                            <option value="Saturday">Saturday</option>
+                            <option value="Sunday">Sunday</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="input-group">
+                        <label>Technician Arrival Time (local time):</label>
+                        <div style="display: flex; gap: 8px;">
+                            <input type="text" id="arrivalTimeInput" placeholder="20:45" style="flex: 1;">
+                            <select id="arrivalTimezone" style="width: auto;">
+                                <option value="ET">ET (Eastern - ON, QC)</option>
+                                <option value="CT">CT (Central - MB, SK)</option>
+                                <option value="MT">MT (Mountain - AB, NT)</option>
+                                <option value="PT">PT (Pacific - BC, YT)</option>
+                                <option value="AT">AT (Atlantic - NS, NB, PE)</option>
+                                <option value="NT">NT (Newfoundland - NL)</option>
+                            </select>
+                        </div>
+                        <input type="hidden" id="arrivalTime">
+                    </div>
+                    <div class="input-group">
+                        <label>Arrival Time ET:</label>
+                        <input type="text" id="arrivalTimeEST" readonly style="background-color: #f0f0f0; cursor: default;">
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="input-group">
+                        <label>EOD Time (local time):</label>
+                        <div style="display: flex; gap: 8px;">
+                            <input type="text" id="eodTimeInput" placeholder="21:00" style="flex: 1;">
+                            <select id="eodTimezone" style="width: auto;">
+                                <option value="ET">ET (Eastern - ON, QC)</option>
+                                <option value="CT">CT (Central - MB, SK)</option>
+                                <option value="MT">MT (Mountain - AB, NT)</option>
+                                <option value="PT">PT (Pacific - BC, YT)</option>
+                                <option value="AT">AT (Atlantic - NS, NB, PE)</option>
+                                <option value="NT">NT (Newfoundland - NL)</option>
+                            </select>
+                        </div>
+                        <input type="hidden" id="eodTime">
+                    </div>
+                    <div class="input-group">
+                        <!-- Empty placeholder for alignment with Arrival Time EST -->
+                    </div>
+                </div>
+
+                <div class="section-divider"></div>
+
+                <button class="btn btn-input" onclick="generateOutputs()">GENERATE ALL OUTPUTS</button>
+
+                <!-- Validation Warning Banner -->
+                <div class="warning-banner" id="validationWarning" style="display: none;">
+                    <h4>Missing Required Fields</h4>
+                    <ul id="missingFieldsList"></ul>
+                    <div class="validation-summary">
+                        <span class="valid-count" id="validCount"></span>
+                        <span class="missing-count" id="missingCount"></span>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 10px; margin-top: 10px;">
+                    <button class="btn btn-input" style="flex:1" onclick="exportToCSV()">EXPORT TO CSV (PROJEQTOR)</button>
+                    <button class="btn btn-secondary" style="flex:1" onclick="clearAll()">CLEAR ALL</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- OUTPUTS SECTION - FULL WIDTH -->
+    <div style="max-width: 100%; margin: 0 auto; padding: 0 15px;">
+        <div class="outputs-container">
+            <!-- OUTPUT 1 - URGENT SLA -->
+            <div class="output-panel urgent-panel">
+                <div class="output-header urgent-header">
+                    <h3><span class="urgent-badge">SLA - DO THIS FIRST!</span> 1. DO FIRST IN SERVICENOW, BOTH NOTES INTERNAL AND CUSTOMER VISIBLE NOTES</h3>
+                    <button class="btn btn-copy" onclick="copyOutput('output1')">COPY</button>
+                </div>
+                <div class="output-box" id="output1">Generate outputs to see content...</div>
+            </div>
+
+            <!-- OUTPUT 2 - DISPATCH EMAIL -->
+            <div class="output-panel">
+                <div class="output-header">
+                    <h3>2. DISPATCH EMAIL</h3>
+                    <button class="btn btn-copy" onclick="copyOutput('output2')">COPY</button>
+                </div>
+                <div class="output-box" id="output2">Generate outputs to see content...</div>
+            </div>
+
+            <!-- OUTPUT 3 - UPDATE SERVICENOW -->
+            <div class="output-panel">
+                <div class="output-header">
+                    <h3>3. UPDATE SERVICENOW WITH DISPATCH EMAIL INTERNAL NOTES</h3>
+                    <button class="btn btn-copy" onclick="copyOutput('output3')">COPY</button>
+                </div>
+                <div class="output-box" id="output3">Generate outputs to see content...</div>
+            </div>
+
+            <!-- OUTPUT 4 - ASK FOR TECH INFO -->
+            <div class="output-panel">
+                <div class="output-header">
+                    <h3>4. ASK FOR TECH INFO</h3>
+                    <button class="btn btn-copy" onclick="copyOutput('output4')">COPY</button>
+                </div>
+                <div class="output-box" id="output4">Generate outputs to see content...</div>
+            </div>
+
+            <!-- OUTPUT 5 - BFG TRACKER TICKET SUMMARY -->
+            <div class="output-panel">
+                <div class="output-header">
+                    <h3>5. BFG TRACKER TICKET SUMMARY</h3>
+                    <button class="btn btn-copy" onclick="copyOutput('output5')">COPY</button>
+                </div>
+                <div class="output-box" id="output5">Generate outputs to see content...</div>
+            </div>
+
+            <!-- OUTPUT 6 - UPDATE SERVICE NOW WITH TECH STORE VISIT (CUSTOMER VISIBLE ONLY) -->
+            <div class="output-panel">
+                <div class="output-header">
+                    <h3>6. ONCE DISPATCH CONFIRMS TECH STORE VISIT, UPDATE SERVICE NOW WITH TECH STORE VISIT (CUSTOMER VISIBLE ONLY)</h3>
+                    <button class="btn btn-copy" onclick="copyOutput('output6')">COPY</button>
+                </div>
+                <div class="output-box" id="output6">Generate outputs to see content...</div>
+            </div>
+        </div>
+        </div>
+    </div>
+
+    <div class="copy-notification" id="copyNotification">Copied!</div>
+
+    <script>
+        // Dell Parts Database
+        const dellPartsDatabase = [
+            { code: 'CBF-DEL-AC-05YC4P', description: 'Dell 05YC4P System Board FC640/M640', category: 'AC' },
+            { code: 'CBF-DEL-AC-08X25K', description: 'Dell 08X25K SAS Backplane Controller for VRTX', category: 'AC' },
+            { code: 'CBF-DEL-AC-0CJ3W7', description: 'Dell 0CJ3W7 Fan Assembly, Rear VRTX', category: 'AC' },
+            { code: 'CBF-DEL-AC-0V60TN', description: 'Dell 0V60TN Hot Swap Fan for Dell PowerEdge VRTX', category: 'AC' },
+            { code: 'CBF-DEL-AC-0Y9CJ7', description: 'Dell 0Y9CJ7 Poweredge M640 Fc640 Idsdm Riser Card', category: 'AC' },
+            { code: 'CBF-DEL-AC-34V0R', description: 'Dell 34V0R Vrtx CMC Control Module', category: 'AC' },
+            { code: 'CBF-DEL-AC-P3WV4', description: 'Dell P3WV4 PERC Mini Mono 1GB Cache Raid Controller for VRTX', category: 'AC' },
+            { code: 'CBF-DEL-AC-R7YTT', description: 'Dell R7YTT 16GB C10 U3 SDHC Micro SD Card', category: 'AC' },
+            { code: 'CBF-DEL-AC-TN78Y', description: 'Dell TN78Y 32GB PC4-21300 DDR4-2666MHz ECC Memory', category: 'AC' },
+            { code: 'CBF-DEL-BA-037CT1', description: 'Dell 037CT1 Dell 3.7V 1.8Wh 500mAh Lithium-Ion Battery', category: 'BA' },
+            { code: 'CBF-DEL-BA-75481', description: 'Dell CPX-75481 Lithium Coin Cell Battery, 3V, 220mah', category: 'BA' },
+            { code: 'CBF-DEL-BA-H132V', description: 'Dell CPX-H132V 2.6W 1C, LION, Length Long, PERC9 Primary Battery', category: 'BA' },
+            { code: 'CBF-DEL-CB-0NV6R0', description: 'Dell 0NV6R0 Mini SAS SFF8087 Cable for VRTX', category: 'CB' },
+            { code: 'CBF-DEL-HD-XJ233', description: '1.8TB hard disk (DP/N 0GP3FR or 0JY57X or 00WRRF)', category: 'HD' },
+            { code: 'CBF-DEL-PW-095HR5', description: 'Dell 095HR5 1600W Delta Power Supply', category: 'PW' },
+            { code: 'CBF-DEL-SV-M640', description: 'Dell PowerEdge M640 Server Blade for VRTX, Intel Xeon 2.2G', category: 'SV' },
+            { code: 'CBF-DEL-SV-VRTX', description: 'Dell PowerEdge VRTX Server 7 x 1.8TB', category: 'SV' }
+        ];
+
+        // ServiceNow Proxy Configuration
+        const SERVICENOW_PROXY_URL = "https://servicenow.itwizard.ca/api/now/table/wm_order";
+        const SERVICENOW_USER = "temp_test_user";
+        const SERVICENOW_PASSWORD = "lzksd2cjv2p5$tlgkm9#sd";
+
+        function showFetchStatus(message, type) {
+            const fetchStatus = document.getElementById('fetchStatus');
+            fetchStatus.textContent = message;
+            fetchStatus.className = 'fetch-status ' + type;
+        }
+
+        // Auto-fetch from ServiceNow when WO# is detected in paste area
+        async function fetchFromServiceNowAuto(woNumber) {
+            try {
+                const encodedWO = encodeURIComponent(woNumber);
+                const url = `${SERVICENOW_PROXY_URL}?sysparm_query=number%3D${encodedWO}&sysparm_limit=1&sysparm_display_value=true`;
+                const basicAuthToken = btoa(`${SERVICENOW_USER}:${SERVICENOW_PASSWORD}`);
+
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Basic ${basicAuthToken}`,
+                        'Accept': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API Error (${response.status})`);
+                }
+
+                const data = await response.json();
+
+                if (data.result && data.result.length > 0) {
+                    // Get the original pasted text to extract location/address
+                    const pastedText = document.getElementById('pasteInput').value;
+
+                    // Populate from ServiceNow first
+                    populateFromServiceNow(data.result[0]);
+
+                    // Then extract additional info from pasted text (especially location/address)
+                    extractAdditionalFromPastedText(pastedText);
+
+                    showFetchStatus(`✓ ${woNumber} loaded from ServiceNow`, 'success');
+                } else {
+                    showFetchStatus(`${woNumber} not found in ServiceNow. Using manual parsing...`, 'error');
+                    // Fall back to full manual parsing
+                    runManualParsing();
+                }
+
+            } catch (error) {
+                console.error("ServiceNow auto-fetch error:", error);
+                showFetchStatus(`Could not connect to ServiceNow. Using manual parsing...`, 'error');
+                // Fall back to full manual parsing
+                runManualParsing();
+            }
+        }
+
+        // Extract location/address and other info from pasted text (to supplement ServiceNow data)
+        function extractAdditionalFromPastedText(text) {
+            if (!text) return;
+
+            // Extract full address from various formats in pasted text
+
+            // Format 1: "Location Street:" and "Location City:" (ServiceNow report format)
+            const streetMatch = text.match(/Location Street:\s*(.+?)(?=\n|$)/i);
+            const cityMatch = text.match(/Location City:\s*(.+?)(?=\n|$)/i);
+
+            if (streetMatch || cityMatch) {
+                const addressParts = [];
+                if (streetMatch && streetMatch[1].trim()) {
+                    addressParts.push(streetMatch[1].trim());
+                }
+                if (cityMatch && cityMatch[1].trim()) {
+                    addressParts.push(cityMatch[1].trim());
+                }
+                if (addressParts.length > 0) {
+                    woData.address = addressParts.join(', ');
+                }
+            }
+
+            // Format 2: Address in BFG Dispatch Form format
+            if (!woData.address) {
+                const addressLine1Match = text.match(/Address Line 1\s*\n([\s\S]+?)(?=\nAddress Line 2|\nCity)/i);
+                const addressLine2Match = text.match(/Address Line 2\s*\n([\s\S]+?)(?=\nCity)/i);
+                const cityProvinceMatch = text.match(/City \/ Province \/ Postal Code\s*\n\s*(.+?)(?=\n|$)/i);
+
+                const addressParts = [];
+                if (addressLine1Match) {
+                    const lines = addressLine1Match[1].split('\n').map(l => l.trim()).filter(l => l);
+                    addressParts.push(...lines);
+                }
+                if (addressLine2Match) {
+                    const lines = addressLine2Match[1].split('\n').map(l => l.trim()).filter(l => l);
+                    addressParts.push(...lines);
+                }
+                if (cityProvinceMatch && cityProvinceMatch[1].trim()) {
+                    addressParts.push(cityProvinceMatch[1].trim());
+                }
+                if (addressParts.length > 0) {
+                    woData.address = addressParts.join(', ');
+                }
+            }
+
+            // Format 3: Look for Canadian address pattern anywhere in text
+            if (!woData.address) {
+                const canadianAddressMatch = text.match(/(\d+\s+[\w\s]+(?:Rd|Road|St|Street|Ave|Avenue|Blvd|Boulevard|Dr|Drive|Way|Cr|Cres|Crescent)\.?[\s,]+[\w\s]+,?\s*(?:ON|QC|BC|AB|MB|SK|NS|NB|PE|NL|NT|YT|NU)[\s,]*[A-Z]\d[A-Z]\s*\d[A-Z]\d)/i);
+                if (canadianAddressMatch) {
+                    woData.address = canadianAddressMatch[1].trim();
+                }
+            }
+
+            // Update location display with address if found
+            if (woData.address) {
+                const locDisplay = document.getElementById('dispLoc');
+                const fullLocation = woData.locationCode ? `Canadian Tire ${woData.locationCode} - ${woData.address}` : `Canadian Tire - ${woData.address}`;
+                const mapsUrl = `https://www.google.com/maps/search/${encodeURIComponent('Canadian Tire ' + woData.address)}`;
+                locDisplay.innerHTML = `<a href="${mapsUrl}" target="_blank">${fullLocation}</a>`;
+
+                // Extract province from address
+                const province = extractProvinceFromAddress(woData.address);
+                if (province) {
+                    woData.province = province;
+                    document.getElementById('dispProvince').textContent = province;
+
+                    // Update timezone based on province
+                    const tzAbbr = getTimezoneAbbr(province);
+                    currentTimezone = tzAbbr;
+                    document.getElementById('eodTimezone').value = tzAbbr;
+                    document.getElementById('arrivalTimezone').value = tzAbbr;
+                }
+
+                // Store clean location for CSV
+                woData.cleanLocation = (woData.locationCode || '') + ' - ' + woData.address;
+            }
+
+            // Extract date/time if not already set from ServiceNow
+            const execDateField = document.getElementById('execDate').value;
+            if (!execDateField) {
+                const dateTimeMatch = text.match(/Required Date\/Time of Service\s*[:\?]?\s*([^\n]+)/i);
+                if (dateTimeMatch) {
+                    const dateTimeStr = dateTimeMatch[1].trim();
+                    document.getElementById('dispDateTime').textContent = dateTimeStr;
+                    woData.requiredDateTime = dateTimeStr;
+                    parseAndSetDateTime(dateTimeStr);
+                }
+            }
+
+            // Now fetch contact from scheduling API since date/time should be set
+            const arrivalTimeValue = document.getElementById('arrivalTime').value;
+            const execDateValue = document.getElementById('execDate').value;
+
+            if (arrivalTimeValue && execDateValue) {
+                document.getElementById('dispContact').textContent = 'Loading from schedule...';
+                fetchContactFromAPI(arrivalTimeValue, execDateValue).then(contactInfo => {
+                    if (contactInfo) {
+                        woData.contact = contactInfo.name || '';
+                        woData.contactPhone = contactInfo.phone || '';
+                        const contactDisplay = contactInfo.phone ?
+                            `${contactInfo.name} - ${contactInfo.phone}` : contactInfo.name;
+                        document.getElementById('dispContact').textContent = contactDisplay || '- (not found)';
+
+                        // Auto-fill contact name field for autocomplete
+                        if (contactInfo.name) {
+                            document.getElementById('contactName').value = contactInfo.name;
+                            // Trigger phone auto-fill if we have phone
+                            if (contactInfo.phone) {
+                                document.getElementById('contactPhone').value = contactInfo.phone;
+                            }
+                        }
+                    } else {
+                        document.getElementById('dispContact').textContent = '- (not found in schedule)';
+                    }
+                }).catch(err => {
+                    console.error('Contact API error:', err);
+                    document.getElementById('dispContact').textContent = '- (API error)';
+                });
+            } else {
+                document.getElementById('dispContact').textContent = '- (no date/time available)';
+            }
+        }
+
+        // Run full manual parsing (fallback when ServiceNow fetch fails)
+        function runManualParsing() {
+            const text = document.getElementById('pasteInput').value;
+            if (!text.trim()) return;
+
+            // Track if date/time was successfully parsed
+            let dateTimeParsed = false;
+
+            // Try BFG Dispatch Form parser first
+            const bfgSuccess = parseBFGDispatchForm(text);
+            if (bfgSuccess) {
+                dateTimeParsed = true;
+            }
+
+            // If BFG parser didn't work, continue with old logic
+            if (!bfgSuccess) {
+                // Extract fields
+                woData.woNumber = extractField(text, /WO\d+/i) || '';
+                woData.wotNumber = extractField(text, /WOT\d+/i) || '';
+                woData.incNumber = extractField(text, /INC\d+/i) || '';
+
+                // Extract location code (CTR or FGL format)
+                woData.locationCode = extractField(text, /Location:\s*\n?\s*((?:CTR|FGL)\d+)/i) || '';
+
+                // Extract full location/address
+                const streetMatch = text.match(/Location Street:\s*(.+?)(?=\n|$)/i);
+                const cityMatch = text.match(/Location City:\s*(.+?)(?=\n|$)/i);
+
+                if (streetMatch || cityMatch) {
+                    const addressParts = [];
+                    if (streetMatch && streetMatch[1].trim()) {
+                        addressParts.push(streetMatch[1].trim());
+                    }
+                    if (cityMatch && cityMatch[1].trim()) {
+                        addressParts.push(cityMatch[1].trim());
+                    }
+                    woData.address = addressParts.join(', ');
+                } else {
+                    const locMatch = text.match(/Location:\s+(?:CTR|FGL)\d+\s*\n([\s\S]*?)(?=\n\s*Short Description|$)/i);
+                    if (locMatch) {
+                        const addressLines = locMatch[1]
+                            .split('\n')
+                            .map(l => l.trim())
+                            .filter(l => l && l.length > 0 && !l.match(/^(Customer|BFG|Work Order|Priority|Assignment|Service|Service Time|Location|Short)/i))
+                            .filter(l => l !== ',');
+                        woData.address = addressLines.join(', ').replace(/,\s*,/g, ',').trim();
+                    }
+                }
+
+                woData.cleanLocation = woData.locationCode + (woData.address ? ' - ' + woData.address : '');
+                woData.shortDesc = extractField(text, /Short Description:\s*\n?\s*(.+?)(?=\n|$)/i) || '';
+
+                // Extract disk slot
+                const slotMatch = woData.shortDesc.match(/(\d+[:\.])\d+[:\.](\d+)/);
+                if (slotMatch) {
+                    document.getElementById('diskSlot').value = slotMatch[0].replace(/\./g, ':');
+                }
+
+                // Extract date/time
+                const dateTimeMatch = text.match(/Required Date\/Time of Service\s*:\s*(.+?)(?=\n|$)/i);
+                if (dateTimeMatch) {
+                    dateTimeParsed = true;
+                    const dateTimeStr = dateTimeMatch[1].trim();
+                    woData.requiredDateTime = dateTimeStr;
+                    parseAndSetDateTime(dateTimeStr);
+                }
+            }
+
+            // Update display
+            document.getElementById('dispWOT').textContent = woData.wotNumber || '-';
+            document.getElementById('dispWO').textContent = woData.woNumber || '-';
+            document.getElementById('dispINC').textContent = woData.incNumber || '-';
+            document.getElementById('dispStoreNumber').textContent = woData.locationCode || '-';
+
+            const locDisplay = document.getElementById('dispLoc');
+            if (woData.address) {
+                const fullLocation = 'Canadian Tire - ' + woData.address;
+                const mapsUrl = `https://www.google.com/maps/search/${encodeURIComponent('Canadian Tire ' + woData.address)}`;
+                locDisplay.innerHTML = `<a href="${mapsUrl}" target="_blank">${fullLocation}</a>`;
+            } else if (woData.locationCode) {
+                locDisplay.textContent = woData.locationCode;
+            } else {
+                locDisplay.textContent = '-';
+            }
+
+            if (woData.address) {
+                woData.province = extractProvinceFromAddress(woData.address) || '-';
+            } else {
+                woData.province = '-';
+            }
+            document.getElementById('dispProvince').textContent = woData.province || '-';
+
+            document.getElementById('dispDesc').textContent = woData.shortDesc || '-';
+            document.getElementById('shortDesc').value = woData.shortDesc || '';
+            document.getElementById('dispDateTime').textContent = woData.requiredDateTime || '-';
+
+            // Contact will be fetched after extractAdditionalFromPastedText sets the date/time
+            document.getElementById('dispContact').textContent = '- (waiting for date/time)';
+        }
+
+
+        function getDisplayValue(field) {
+            if (!field) return '';
+            if (typeof field === 'string') return field;
+            if (field.display_value) return field.display_value;
+            return '';
+        }
+
+        function populateFromServiceNow(wo) {
+            // Extract WOT from work notes
+            const wotMatch = (wo.work_notes || '').match(/WOT\d+/);
+            const wotNumber = wotMatch ? wotMatch[0] : '';
+
+            // Get location code
+            const locationDisplay = getDisplayValue(wo.location) || '';
+            const storeNumMatch = locationDisplay.match(/CTR(\d+)/i) || locationDisplay.match(/FGL(\d+)/i);
+
+            // Populate woData object
+            woData.woNumber = wo.number || '';
+            woData.wotNumber = wotNumber;
+            woData.incNumber = wo.u_loblaw_incident_no || '';
+            woData.locationCode = locationDisplay;
+            woData.shortDesc = wo.short_description || '';
+
+            // Extract schedule info from description
+            const description = wo.description || '';
+            const scheduleMatch = description.match(/Required Date\/Time of Service\s*:\s*([^\n]+)/i);
+            if (scheduleMatch) {
+                woData.requiredDateTime = scheduleMatch[1].trim();
+            }
+
+            // Extract primary phone for province detection (but contact will come from external API)
+            let primaryPhone = wo.u_primary_contact_phone || '';
+            if (!primaryPhone) {
+                const primaryPhoneMatch = description.match(/Primary\/Onsite Phone Number:\s*([^\n]+)/i);
+                if (primaryPhoneMatch) primaryPhone = primaryPhoneMatch[1].trim();
+            }
+
+            // Update display fields
+            document.getElementById('dispWOT').textContent = wotNumber || '-';
+            document.getElementById('dispWO').textContent = wo.number || '-';
+            document.getElementById('dispINC').textContent = wo.u_loblaw_incident_no || '-';
+            document.getElementById('dispStoreNumber').textContent = locationDisplay || '-';
+            document.getElementById('dispDesc').textContent = wo.short_description || '-';
+            document.getElementById('shortDesc').value = wo.short_description || '';
+
+            // Set location with Google Maps link
+            const locDisplay = document.getElementById('dispLoc');
+            if (locationDisplay) {
+                const mapsUrl = `https://www.google.com/maps/search/${encodeURIComponent('Canadian Tire ' + locationDisplay)}`;
+                locDisplay.innerHTML = `<a href="${mapsUrl}" target="_blank">Canadian Tire - ${locationDisplay}</a>`;
+            } else {
+                locDisplay.textContent = '-';
+            }
+
+            // Extract province from phone number area code or description
+            let province = '-';
+            if (primaryPhone) {
+                const areaCode = primaryPhone.replace(/\D/g, '').substring(0, 3);
+                const areaCodeToProvince = {
+                    '416': 'Ontario', '647': 'Ontario', '437': 'Ontario', '905': 'Ontario', '289': 'Ontario',
+                    '519': 'Ontario', '226': 'Ontario', '613': 'Ontario', '343': 'Ontario', '705': 'Ontario',
+                    '249': 'Ontario', '807': 'Ontario', '514': 'Quebec', '438': 'Quebec', '450': 'Quebec',
+                    '579': 'Quebec', '418': 'Quebec', '581': 'Quebec', '819': 'Quebec', '873': 'Quebec',
+                    '604': 'British Columbia', '778': 'British Columbia', '236': 'British Columbia',
+                    '250': 'British Columbia', '403': 'Alberta', '587': 'Alberta', '780': 'Alberta',
+                    '825': 'Alberta', '204': 'Manitoba', '431': 'Manitoba', '306': 'Saskatchewan',
+                    '639': 'Saskatchewan', '902': 'Nova Scotia', '782': 'Nova Scotia',
+                    '506': 'New Brunswick', '709': 'Newfoundland and Labrador'
+                };
+                province = areaCodeToProvince[areaCode] || '-';
+            }
+            woData.province = province;
+            document.getElementById('dispProvince').textContent = province;
+
+            // Set timezone based on province
+            if (province !== '-') {
+                const tzAbbr = getTimezoneAbbr(province);
+                currentTimezone = tzAbbr;
+                document.getElementById('eodTimezone').value = tzAbbr;
+                document.getElementById('arrivalTimezone').value = tzAbbr;
+            }
+
+            // Parse date/time from description FIRST (needed for contact API)
+            if (scheduleMatch) {
+                const dateTimeStr = scheduleMatch[1].trim();
+                document.getElementById('dispDateTime').textContent = dateTimeStr;
+                parseAndSetDateTime(dateTimeStr);
+            }
+
+            // Fetch contact from external scheduling API (based on date and arrival time)
+            const arrivalTimeField = document.getElementById('arrivalTime').value;
+            const execDateField = document.getElementById('execDate').value;
+
+            if (arrivalTimeField && execDateField) {
+                // Show loading state for contact
+                document.getElementById('dispContact').textContent = 'Loading from schedule...';
+
+                fetchContactFromAPI(arrivalTimeField, execDateField).then(contactInfo => {
+                    if (contactInfo && contactInfo.name) {
+                        document.getElementById('contactName').value = contactInfo.name;
+                        document.getElementById('contactPhone').value = contactInfo.phone || '';
+                        woData.contactName = contactInfo.name;
+                        woData.contactPhone = contactInfo.phone || '';
+                        document.getElementById('dispContact').textContent =
+                            contactInfo.name + (contactInfo.phone ? ' ' + contactInfo.phone : '');
+                    } else {
+                        document.getElementById('dispContact').textContent = '- (Not found in schedule)';
+                    }
+                }).catch(err => {
+                    console.error('Contact API error:', err);
+                    document.getElementById('dispContact').textContent = '- (API error)';
+                });
+            } else {
+                document.getElementById('dispContact').textContent = '- (No date/time to lookup)';
+            }
+
+            // Extract disk slot from short description
+            const slotMatch = wo.short_description ? wo.short_description.match(/(\d+[:\.])\d+[:\.](\d+)/) : null;
+            if (slotMatch) {
+                const normalizedSlot = slotMatch[0].replace(/\./g, ':');
+                document.getElementById('diskSlot').value = normalizedSlot;
+            }
+
+            // Put full work notes in paste area for reference
+            const pasteContent = `=== FETCHED FROM SERVICENOW: ${wo.number} ===
+
+SHORT DESCRIPTION:
+${wo.short_description || ''}
+
+DESCRIPTION:
+${wo.description || ''}
+
+WORK NOTES (excerpt):
+${(wo.work_notes || '').substring(0, 2000)}${(wo.work_notes || '').length > 2000 ? '...(truncated)' : ''}
+`;
+            document.getElementById('pasteInput').value = pasteContent;
+        }
+
+        // Helper to parse date/time string and set form fields
+        function parseAndSetDateTime(dateTimeStr) {
+            if (!dateTimeStr) return;
+
+            const monthNames = {
+                'jan': 'January', 'feb': 'February', 'mar': 'March', 'apr': 'April',
+                'may': 'May', 'jun': 'June', 'jul': 'July', 'aug': 'August',
+                'sep': 'September', 'oct': 'October', 'nov': 'November', 'dec': 'December'
+            };
+            const monthNamesList = ['January', 'February', 'March', 'April', 'May', 'June',
+                                   'July', 'August', 'September', 'October', 'November', 'December'];
+
+            let day, month, year;
+
+            // Try various date formats
+            // Format: Thursday 01/15/2026 at 09:00 PM
+            let dateMatch = dateTimeStr.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+            if (dateMatch) {
+                month = parseInt(dateMatch[1]);
+                day = dateMatch[2];
+                year = dateMatch[3];
+            } else {
+                // Format: Jan 15 or January 15
+                dateMatch = dateTimeStr.match(/(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+(\d{1,2})/i);
+                if (dateMatch) {
+                    const monthStr = dateMatch[1].toLowerCase().substring(0, 3);
+                    month = Object.keys(monthNames).indexOf(monthStr) + 1;
+                    day = dateMatch[2];
+                    year = new Date().getFullYear();
+                }
+            }
+
+            // Set date if found
+            if (day && month && year) {
+                const fullMonth = monthNamesList[month - 1];
+                const dateValue = `${fullMonth} ${day}, ${year}`;
+                if (execDatePicker) {
+                    execDatePicker.setDate(dateValue, true);
+                } else {
+                    document.getElementById('execDate').value = dateValue;
+                }
+
+                // Set day of week
+                const dateObj = new Date(year, month - 1, parseInt(day));
+                const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                document.getElementById('dayOfWeek').value = days[dateObj.getDay()];
+            }
+
+            // Parse time
+            let timeMatch = dateTimeStr.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)/i);
+            if (timeMatch) {
+                let hours = parseInt(timeMatch[1]);
+                let minutes = timeMatch[2] ? parseInt(timeMatch[2]) : 0;
+                const ampm = timeMatch[3].toUpperCase();
+
+                // Convert to 24-hour
+                if (ampm === 'PM' && hours !== 12) hours += 12;
+                if (ampm === 'AM' && hours === 12) hours = 0;
+
+                // Set EOD time
+                const eodTimeOnly = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+                if (eodTimePicker) {
+                    eodTimePicker.setDate(eodTimeOnly, false);
+                }
+                document.getElementById('eodTimeInput').value = eodTimeOnly;
+                updateEodTimeValue();
+
+                // Calculate arrival time (15 min before EOD)
+                let arrivalMins = minutes - 15;
+                let arrivalHours = hours;
+                if (arrivalMins < 0) {
+                    arrivalMins += 60;
+                    arrivalHours -= 1;
+                }
+                if (arrivalHours < 0) arrivalHours += 24;
+
+                const arrivalTimeOnly = `${arrivalHours.toString().padStart(2, '0')}:${arrivalMins.toString().padStart(2, '0')}`;
+                if (arrivalTimePicker) {
+                    arrivalTimePicker.setDate(arrivalTimeOnly, false);
+                }
+                document.getElementById('arrivalTimeInput').value = arrivalTimeOnly;
+                updateArrivalTimeValue();
+            }
+        }
+
+        // Flatpickr instances for date/time pickers
+        let execDatePicker = null;
+        let eodTimePicker = null;
+        let arrivalTimePicker = null;
+
+        // Store current timezone (from parsed province, default ET)
+        let currentTimezone = 'ET';
+
+        // Store parsed work order data
+        let woData = {
+            woNumber: '',
+            wotNumber: '',
+            incNumber: '',
+            location: '',
+            locationCode: '',
+            shortDesc: '',
+            address: '',
+            province: '',
+            issuer: '',
+            requestor: '',
+            cleanLocation: '' // Store clean location for CSV export
+        };
+
+        // Validate all critical fields and show warnings
+        function validateFields() {
+            const missingFields = [];
+            const validFields = [];
+
+            // Helper to check if a value is empty/placeholder
+            const isEmpty = (val) => !val || val === '-' || val === '' || (typeof val === 'string' && val.startsWith('['));
+
+            // Check ticket numbers (all three required)
+            if (isEmpty(woData.wotNumber)) {
+                missingFields.push('WOT#');
+            } else {
+                validFields.push('WOT#');
+            }
+
+            if (isEmpty(woData.woNumber)) {
+                missingFields.push('WO#');
+            } else {
+                validFields.push('WO#');
+            }
+
+            if (isEmpty(woData.incNumber)) {
+                missingFields.push('INC#');
+            } else {
+                validFields.push('INC#');
+            }
+
+            // Check Store Location/Code
+            if (isEmpty(woData.locationCode)) {
+                missingFields.push('Store Number/Location Code');
+            } else {
+                validFields.push('Store Number');
+            }
+
+            // Check Part Code
+            const partCode = document.getElementById('partCode').value;
+            if (isEmpty(partCode)) {
+                missingFields.push('Part Code');
+                document.getElementById('partCode').classList.add('input-missing');
+                document.getElementById('partCode').classList.remove('input-valid');
+            } else {
+                validFields.push('Part Code');
+                document.getElementById('partCode').classList.remove('input-missing');
+                document.getElementById('partCode').classList.add('input-valid');
+            }
+
+            // Check Part Description
+            const partDesc = document.getElementById('partDesc').value;
+            if (isEmpty(partDesc)) {
+                missingFields.push('Part Description');
+                document.getElementById('partDesc').classList.add('input-missing');
+                document.getElementById('partDesc').classList.remove('input-valid');
+            } else {
+                validFields.push('Part Description');
+                document.getElementById('partDesc').classList.remove('input-missing');
+                document.getElementById('partDesc').classList.add('input-valid');
+            }
+
+            // Check Description
+            const shortDescInput = document.getElementById('shortDesc').value;
+            if (isEmpty(shortDescInput)) {
+                missingFields.push('Description');
+                document.getElementById('shortDesc').classList.add('input-missing');
+                document.getElementById('shortDesc').classList.remove('input-valid');
+            } else {
+                validFields.push('Description');
+                document.getElementById('shortDesc').classList.remove('input-missing');
+                document.getElementById('shortDesc').classList.add('input-valid');
+            }
+
+            // Check Required Date/Time
+            const execDate = document.getElementById('execDate').value;
+            const arrivalTime = document.getElementById('arrivalTime').value;
+            if (isEmpty(execDate) || isEmpty(arrivalTime)) {
+                missingFields.push('Required Date/Time');
+                if (isEmpty(execDate)) {
+                    document.getElementById('execDate').classList.add('input-missing');
+                    document.getElementById('execDate').classList.remove('input-valid');
+                }
+                if (isEmpty(arrivalTime)) {
+                    document.getElementById('arrivalTimeInput').classList.add('input-missing');
+                    document.getElementById('arrivalTimeInput').classList.remove('input-valid');
+                }
+            } else {
+                validFields.push('Required Date/Time');
+                document.getElementById('execDate').classList.remove('input-missing');
+                document.getElementById('execDate').classList.add('input-valid');
+                document.getElementById('arrivalTimeInput').classList.remove('input-missing');
+                document.getElementById('arrivalTimeInput').classList.add('input-valid');
+            }
+
+            // Check EOD Time
+            const eodTime = document.getElementById('eodTime').value;
+            if (isEmpty(eodTime)) {
+                missingFields.push('EOD Time');
+                document.getElementById('eodTimeInput').classList.add('input-missing');
+                document.getElementById('eodTimeInput').classList.remove('input-valid');
+            } else {
+                validFields.push('EOD Time');
+                document.getElementById('eodTimeInput').classList.remove('input-missing');
+                document.getElementById('eodTimeInput').classList.add('input-valid');
+            }
+
+            // Check Day of Week
+            const dayOfWeek = document.getElementById('dayOfWeek').value;
+            if (isEmpty(dayOfWeek)) {
+                missingFields.push('Day of Week');
+            } else {
+                validFields.push('Day of Week');
+            }
+
+            // Check Contact Name
+            const contactName = document.getElementById('contactName').value;
+            if (isEmpty(contactName)) {
+                missingFields.push('Contact Name');
+                document.getElementById('contactName').classList.add('input-missing');
+                document.getElementById('contactName').classList.remove('input-valid');
+            } else {
+                validFields.push('Contact Name');
+                document.getElementById('contactName').classList.remove('input-missing');
+                document.getElementById('contactName').classList.add('input-valid');
+            }
+
+            // Check Contact Phone
+            const contactPhone = document.getElementById('contactPhone').value;
+            if (isEmpty(contactPhone)) {
+                missingFields.push('Contact Phone');
+                document.getElementById('contactPhone').classList.add('input-missing');
+                document.getElementById('contactPhone').classList.remove('input-valid');
+            } else {
+                validFields.push('Contact Phone');
+                document.getElementById('contactPhone').classList.remove('input-missing');
+                document.getElementById('contactPhone').classList.add('input-valid');
+            }
+
+            // Update extracted info display with validation classes
+            updateExtractedInfoValidation();
+
+            // Update warning banner
+            const warningBanner = document.getElementById('validationWarning');
+            const missingList = document.getElementById('missingFieldsList');
+            const validCount = document.getElementById('validCount');
+            const missingCount = document.getElementById('missingCount');
+
+            if (missingFields.length > 0) {
+                missingList.innerHTML = missingFields.map(f => `<li>${f}</li>`).join('');
+                validCount.textContent = `${validFields.length} fields OK`;
+                missingCount.textContent = `${missingFields.length} fields missing`;
+                warningBanner.style.display = 'block';
+            } else {
+                warningBanner.style.display = 'none';
+            }
+
+            return {
+                isValid: missingFields.length === 0,
+                missingFields: missingFields,
+                validFields: validFields
+            };
+        }
+
+        // Update extracted info spans with validation highlighting
+        function updateExtractedInfoValidation() {
+            const isEmpty = (val) => !val || val === '-' || val === '';
+
+            // WOT#
+            const dispWOT = document.getElementById('dispWOT');
+            dispWOT.className = isEmpty(woData.wotNumber) ? 'field-missing' : 'field-valid';
+
+            // WO#
+            const dispWO = document.getElementById('dispWO');
+            dispWO.className = isEmpty(woData.woNumber) ? 'field-missing' : 'field-valid';
+
+            // INC#
+            const dispINC = document.getElementById('dispINC');
+            dispINC.className = isEmpty(woData.incNumber) ? 'field-missing' : 'field-valid';
+
+            // Store Number
+            const dispStoreNumber = document.getElementById('dispStoreNumber');
+            dispStoreNumber.className = isEmpty(woData.locationCode) ? 'field-missing' : 'field-valid';
+
+            // Province
+            const dispProvince = document.getElementById('dispProvince');
+            dispProvince.className = isEmpty(woData.province) || woData.province === '-' ? 'field-missing' : 'field-valid';
+
+            // Description
+            const dispDesc = document.getElementById('dispDesc');
+            const shortDescValue = document.getElementById('shortDesc').value;
+            dispDesc.className = isEmpty(shortDescValue) ? 'field-missing' : 'field-valid';
+
+            // Required Date/Time
+            const dispDateTime = document.getElementById('dispDateTime');
+            dispDateTime.className = isEmpty(woData.requiredDateTime) ? 'field-missing' : 'field-valid';
+
+            // Contact
+            const dispContact = document.getElementById('dispContact');
+            const contactName = document.getElementById('contactName').value;
+            const contactPhone = document.getElementById('contactPhone').value;
+            dispContact.className = (isEmpty(contactName) || isEmpty(contactPhone)) ? 'field-missing' : 'field-valid';
+        }
+
+        // Extract province from address - handles abbreviations and full names anywhere
+        function extractProvinceFromAddress(address) {
+            const provinceMap = {
+                'ON': 'Ontario', 'QC': 'Quebec', 'BC': 'British Columbia',
+                'AB': 'Alberta', 'MB': 'Manitoba', 'SK': 'Saskatchewan',
+                'NS': 'Nova Scotia', 'NB': 'New Brunswick', 'NL': 'Newfoundland and Labrador',
+                'PE': 'Prince Edward Island', 'NT': 'Northwest Territories',
+                'YT': 'Yukon', 'NU': 'Nunavut'
+            };
+            
+            const fullNameMap = {
+                'Ontario': 'Ontario', 'Quebec': 'Quebec', 'British Columbia': 'British Columbia',
+                'Alberta': 'Alberta', 'Manitoba': 'Manitoba', 'Saskatchewan': 'Saskatchewan',
+                'Nova Scotia': 'Nova Scotia', 'New Brunswick': 'New Brunswick', 
+                'Newfoundland and Labrador': 'Newfoundland and Labrador',
+                'Prince Edward Island': 'Prince Edward Island', 'Northwest Territories': 'Northwest Territories',
+                'Yukon': 'Yukon', 'Nunavut': 'Nunavut'
+            };
+            
+            // Try 1: Find province code followed by postal code pattern (e.g., "QC J6A 5N4")
+            let match = address.match(/\b([A-Z]{2})\s+[A-Z]\d[A-Z]\s*\d[A-Z]\d/i);
+            if (match) {
+                const code = match[1].toUpperCase();
+                return provinceMap[code] || code;
+            }
+            
+            // Try 2: Find province code anywhere in address (word boundary)
+            // Use global flag to check ALL two-letter matches, not just the first
+            const allMatches = address.matchAll(/\b([A-Z]{2})\b/g);
+            for (const match of allMatches) {
+                const code = match[1].toUpperCase();
+                if (provinceMap[code]) {
+                    return provinceMap[code];
+                }
+            }
+            
+            // Try 3: Find full province name anywhere in address (case insensitive)
+            for (const [fullName, province] of Object.entries(fullNameMap)) {
+                const regex = new RegExp(`\\b${fullName}\\b`, 'i');
+                if (regex.test(address)) {
+                    return province;
+                }
+            }
+            
+            return null;
+        }
+
+        // Get timezone info for province
+        function getTimezoneInfo(province) {
+            const timezones = {
+                'Ontario': { zone: 'EST/EDT', offset: -5, dstOffset: -4 },
+                'Quebec': { zone: 'EST/EDT', offset: -5, dstOffset: -4 },
+                'Manitoba': { zone: 'CST/CDT', offset: -6, dstOffset: -5 },
+                'Saskatchewan': { zone: 'CST', offset: -6, dstOffset: -6 },
+                'Alberta': { zone: 'MST/MDT', offset: -7, dstOffset: -6 },
+                'British Columbia': { zone: 'PST/PDT', offset: -8, dstOffset: -7 },
+                'Nova Scotia': { zone: 'AST/ADT', offset: -4, dstOffset: -3 },
+                'New Brunswick': { zone: 'AST/ADT', offset: -4, dstOffset: -3 },
+                'Newfoundland and Labrador': { zone: 'NST/NDT', offset: -3.5, dstOffset: -2.5 },
+                'Prince Edward Island': { zone: 'AST/ADT', offset: -4, dstOffset: -3 },
+                'Northwest Territories': { zone: 'MST', offset: -7, dstOffset: -7 },
+                'Yukon': { zone: 'PST', offset: -8, dstOffset: -8 },
+                'Nunavut': { zone: 'CST/CDT', offset: -6, dstOffset: -5 }
+            };
+            return timezones[province] || { zone: 'EST/EDT', offset: -5, dstOffset: -4 };
+        }
+
+        // Check if date is in daylight saving time
+        function isDaylightSavingTime(date) {
+            const year = date.getFullYear();
+            const march = new Date(year, 2, 1);
+            const november = new Date(year, 10, 1);
+            const secondSundayMarch = new Date(year, 2, 1 + (7 - march.getDay()) % 7 + 7);
+            const firstSundayNovember = new Date(year, 10, 1 + (7 - november.getDay()) % 7);
+            return date >= secondSundayMarch && date < firstSundayNovember;
+        }
+
+        // Get timezone abbreviation for province (simplified Canadian zones)
+        function getTimezoneAbbr(province) {
+            const abbrs = {
+                'Ontario': 'ET',
+                'Quebec': 'ET',
+                'Manitoba': 'CT',
+                'Saskatchewan': 'CT',
+                'Alberta': 'MT',
+                'British Columbia': 'PT',
+                'Nova Scotia': 'AT',
+                'New Brunswick': 'AT',
+                'Newfoundland and Labrador': 'NT',
+                'Prince Edward Island': 'AT',
+                'Northwest Territories': 'MT',
+                'Yukon': 'PT',
+                'Nunavut': 'CT'
+            };
+            return abbrs[province] || 'ET';
+        }
+
+        // Unified time string parser - handles multiple formats
+        function parseTimeString(dateTimeStr) {
+            if (!dateTimeStr) return null;
+            
+            const result = {
+                month: null,
+                day: null,
+                year: null,
+                hours: null,
+                minutes: 0,
+                ampm: ''
+            };
+            
+            // Format 1: MM/DD/YY - Hpm or MM/DD/YY - HH:MMpm (BFG format)
+            let match = dateTimeStr.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})\s*-\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i);
+            if (match) {
+                result.month = parseInt(match[1]);
+                result.day = parseInt(match[2]);
+                result.year = match[3];
+                result.hours = parseInt(match[4]);
+                result.minutes = match[5] ? parseInt(match[5]) : 0;
+                result.ampm = match[6] ? match[6].toUpperCase() : '';
+                
+                // Convert 2-digit year to 4-digit
+                if (result.year.length === 2) {
+                    result.year = (parseInt(result.year) < 50 ? 2000 : 1900) + parseInt(result.year);
+                }
+                return result;
+            }
+            
+            // Format 2: DayName MM/DD/YYYY at HH:MMam/pm (Regular format)
+            // e.g., "Thursday 01/18/2026 at 09:05 PM"
+            match = dateTimeStr.match(/(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)?\s*(\d{1,2})\/(\d{1,2})\/(\d{4})\s+at\s+(\d{1,2}):(\d{2})\s*(am|pm)?/i);
+            if (match) {
+                result.month = parseInt(match[1]);
+                result.day = parseInt(match[2]);
+                result.year = parseInt(match[3]);
+                result.hours = parseInt(match[4]);
+                result.minutes = parseInt(match[5]);
+                result.ampm = match[6] ? match[6].toUpperCase() : '';
+                return result;
+            }
+            
+            // Format 3: MM-DD-YYYY - HH:MM
+            match = dateTimeStr.match(/(\d{1,2})-(\d{1,2})-(\d{2,4})\s*-\s*(\d{1,2}):(\d{2})/);
+            if (match) {
+                result.month = parseInt(match[1]);
+                result.day = parseInt(match[2]);
+                result.year = match[3];
+                result.hours = parseInt(match[4]);
+                result.minutes = parseInt(match[5]);
+                if (result.year.length === 2) {
+                    result.year = (parseInt(result.year) < 50 ? 2000 : 1900) + parseInt(result.year);
+                }
+                return result;
+            }
+
+            // Format 4: Month Day; Hpm or Month Day; H:MMpm (e.g., "Jan 20; 9pm" or "Jan 20; 9:30pm")
+            // Also handles semicolon or comma separators
+            const monthNames = {
+                'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4, 'may': 5, 'jun': 6,
+                'jul': 7, 'aug': 8, 'sep': 9, 'sept': 9, 'oct': 10, 'nov': 11, 'dec': 12,
+                'january': 1, 'february': 2, 'march': 3, 'april': 4, 'june': 6,
+                'july': 7, 'august': 8, 'september': 9, 'october': 10, 'november': 11, 'december': 12
+            };
+            match = dateTimeStr.match(/(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+(\d{1,2})\s*[;,]\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm)/i);
+            if (match) {
+                const monthStr = match[1].toLowerCase();
+                result.month = monthNames[monthStr] || monthNames[monthStr.substring(0, 3)];
+                result.day = parseInt(match[2]);
+                result.year = new Date().getFullYear();
+                result.hours = parseInt(match[3]);
+                result.minutes = match[4] ? parseInt(match[4]) : 0;
+                result.ampm = match[5].toUpperCase();
+                return result;
+            }
+
+            return null;
+        }
+
+        // Initialize parts table on load
+        function initializePartsDatabase() {
+            renderPartsTable(dellPartsDatabase);
+            // Update parts count badge dynamically
+            document.getElementById('partCountBadge').textContent = dellPartsDatabase.length + ' Parts';
+        }
+
+        // Render parts table
+        function renderPartsTable(parts) {
+            const tbody = document.getElementById('partsTableBody');
+            tbody.innerHTML = parts.map(part => `
+                <tr onclick="selectPart('${part.code}', '${part.description.replace(/'/g, "\\'")}')">
+                    <td class="part-code">${part.code}</td>
+                    <td>${part.description}</td>
+                </tr>
+            `).join('');
+        }
+
+        // Filter parts list for auto-complete
+        function filterPartsList(query) {
+            if (!query) {
+                document.getElementById('partsList').classList.remove('show');
+                return;
+            }
+
+            const filtered = dellPartsDatabase.filter(part => 
+                part.code.toLowerCase().includes(query.toLowerCase()) ||
+                part.description.toLowerCase().includes(query.toLowerCase())
+            );
+
+            const list = document.getElementById('partsList');
+            if (filtered.length === 0) {
+                list.innerHTML = '<div style="padding: 8px; color: #999;">No parts found</div>';
+            } else {
+                list.innerHTML = filtered.map((part, idx) => `
+                    <div class="autocomplete-item" onclick="selectPart('${part.code}', '${part.description.replace(/'/g, "\\'")}')" data-index="${idx}">
+                        <strong>${part.code}</strong> - ${part.description.substring(0, 50)}...
+                    </div>
+                `).join('');
+            }
+            list.classList.add('show');
+        }
+
+        // Show/hide dropdown
+        function showPartsDropdown() {
+            const search = document.getElementById('partSearch').value;
+            if (search) filterPartsList(search);
+        }
+
+        // Handle keyboard navigation in search
+        function handlePartSearchKeydown(event) {
+            const list = document.getElementById('partsList');
+            const items = list.querySelectorAll('.autocomplete-item');
+            if (items.length === 0) return;
+
+            if (event.key === 'ArrowDown') {
+                event.preventDefault();
+                items[0].classList.add('selected');
+            } else if (event.key === 'Enter') {
+                event.preventDefault();
+                const selected = list.querySelector('.autocomplete-item.selected');
+                if (selected) selected.click();
+            }
+        }
+
+        // Filter parts table
+        function filterPartsTable() {
+            const searchTerm = document.getElementById('tableFilter').value.toLowerCase();
+            const categoryFilter = document.getElementById('categoryFilter').value;
+
+            const filtered = dellPartsDatabase.filter(part => {
+                const matchesSearch = part.code.toLowerCase().includes(searchTerm) ||
+                    part.description.toLowerCase().includes(searchTerm);
+                const matchesCategory = !categoryFilter || part.category === categoryFilter;
+                return matchesSearch && matchesCategory;
+            });
+
+            renderPartsTable(filtered);
+        }
+
+        // Select part and populate fields
+        function selectPart(code, description) {
+            document.getElementById('partCode').value = code;
+            document.getElementById('partDesc').value = description;
+            document.getElementById('partSearch').value = '';
+            document.getElementById('partsList').classList.remove('show');
+            document.getElementById('tableFilter').value = '';
+            document.getElementById('categoryFilter').value = '';
+            renderPartsTable(dellPartsDatabase);
+        }
+
+
+        // Parse BFG Dispatch Form format
+        function parseBFGDispatchForm(text) {
+            // Check if this is a BFG Dispatch Form
+            if (!text.includes('BFG Dispatch Form')) {
+                return false;
+            }
+
+            // Extract WO/WOT/INC numbers
+            const woMatch = text.match(/WO\d+/i);
+            const wotMatch = text.match(/WOT\d+/i);
+            const incMatch = text.match(/INC\d+/i);
+
+            if (!woMatch && !wotMatch && !incMatch) {
+                return false;
+            }
+
+            woData.woNumber = woMatch ? woMatch[0] : '';
+            woData.wotNumber = wotMatch ? wotMatch[0] : '';
+            woData.incNumber = incMatch ? incMatch[0] : '';
+
+            // Extract short description from "Short Description:" field
+            const shortDescMatch = text.match(/Short Description:\s*\n?\s*(.+?)(?=\n|$)/i);
+            if (shortDescMatch) {
+                woData.shortDesc = shortDescMatch[1].trim();
+            }
+
+            // Extract FGL number from "Work Order Type: BF - Canadian Tire FGL 330"
+            const fglMatch = text.match(/Work Order Type:.*?FGL\s*(\d+)/i);
+            if (fglMatch) {
+                woData.locationCode = 'FGL' + fglMatch[1];
+            } else {
+                // Try alternative FGL format
+                const fglAltMatch = text.match(/FGL\s*(\d+)/i);
+                if (fglAltMatch) {
+                    woData.locationCode = 'FGL' + fglAltMatch[1];
+                }
+            }
+
+            // Extract store location (address lines + city) from "STORE LOCATION" section FIRST
+            // so we can determine timezone for date/time parsing
+            // Handle multi-line address by using [\s\S] to match across newlines
+            const addressLine1Match = text.match(/Address Line 1\s*\n([\s\S]+?)(?=\nAddress Line 2|\nCity)/i);
+            const addressLine2Match = text.match(/Address Line 2\s*\n([\s\S]+?)(?=\nCity)/i);
+            const cityMatch = text.match(/City \/ Province \/ Postal Code\s*\n\s*(.+?)(?=\n\s*STORE CONTACT|$)/i);
+
+            const addressParts = [];
+            if (addressLine1Match) {
+                const lines = addressLine1Match[1]
+                    .split('\n')
+                    .map(l => l.trim())
+                    .filter(l => l && l.length > 0);
+                addressParts.push(...lines);
+            }
+            if (addressLine2Match) {
+                const lines = addressLine2Match[1]
+                    .split('\n')
+                    .map(l => l.trim())
+                    .filter(l => l && l.length > 0);
+                addressParts.push(...lines);
+            }
+            if (cityMatch && cityMatch[1].trim()) {
+                addressParts.push(cityMatch[1].trim());
+            }
+
+            woData.address = addressParts.join(', ');
+
+            // Store clean location for CSV
+            woData.cleanLocation = woData.locationCode + (woData.address ? ' - ' + woData.address : '');
+
+            // Extract date/time from "Required Date/Time of Service?" and convert to 24-hour format
+            const dateTimeMatch = text.match(/Required Date\/Time of Service\?\s*\n?\s*(.+?)(?=\n|During|$)/i);
+            if (dateTimeMatch) {
+                const dateTimeStr = dateTimeMatch[1].trim();
+
+                // Parse time - handle both "6pm" and "6:00pm" formats
+                const timeMatch = dateTimeStr.match(/(\d{1,2})(?::(\d{2}))?\s*(?:am|pm)?/i);
+                if (timeMatch) {
+                    let hours = parseInt(timeMatch[1]);
+                    const minutes = timeMatch[2] ? parseInt(timeMatch[2]) : 0;
+                    const ampmMatch = dateTimeStr.match(/(am|pm)/i);
+                    const ampm = ampmMatch ? ampmMatch[1].toUpperCase() : '';
+
+                    // Convert to 24-hour if necessary
+                    let hours24 = hours;
+                    if (ampm) {
+                        if (ampm === 'PM' && hours !== 12) hours24 = hours + 12;
+                        if (ampm === 'AM' && hours === 12) hours24 = 0;
+                    }
+
+                    // Subtract 15 minutes for arrival time (before EOD)
+                    let arrivalMins = minutes - 15;
+                    let arrivalHours = hours24;
+                    if (arrivalMins < 0) {
+                        arrivalMins += 60;
+                        arrivalHours -= 1;
+                    }
+
+                    // Extract province and get timezone (now that we have the address)
+                    const province = extractProvinceFromAddress(woData.address);
+                    const isDST = isDaylightSavingTime(new Date());
+                    const tzAbbr = province ? getTimezoneAbbr(province) : 'ET';
+                    currentTimezone = tzAbbr; // Store for time pickers
+                    document.getElementById('eodTimezone').value = tzAbbr;
+                    document.getElementById('arrivalTimezone').value = tzAbbr;
+
+                    // Set arrival time in 24-hour format
+                    const arrivalTimeOnly = arrivalHours.toString().padStart(2, '0') + ':' + arrivalMins.toString().padStart(2, '0');
+                    if (arrivalTimePicker) {
+                        arrivalTimePicker.setDate(arrivalTimeOnly, false);
+                    }
+                    document.getElementById('arrivalTimeInput').value = arrivalTimeOnly;
+                    updateArrivalTimeValue();
+                }
+
+                // Parse date - try all common formats
+                let day, month, year;
+                const monthNames = {
+                    'jan': 'January', 'feb': 'February', 'mar': 'March', 'apr': 'April',
+                    'may': 'May', 'jun': 'June', 'jul': 'July', 'aug': 'August',
+                    'sep': 'September', 'oct': 'October', 'nov': 'November', 'dec': 'December'
+                };
+                const monthNamesList = ['January', 'February', 'March', 'April', 'May', 'June', 
+                                       'July', 'August', 'September', 'October', 'November', 'December'];
+                
+                // Format 1: MM/DD/YYYY or MM/DD/YY (handle both 4-digit and 2-digit years)
+                let dateCheckMatch = dateTimeStr.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+                if (dateCheckMatch) {
+                    month = parseInt(dateCheckMatch[1]);
+                    day = dateCheckMatch[2];
+                    year = dateCheckMatch[3];
+                    // Convert 2-digit year to 4-digit
+                    if (year.length === 2) {
+                        year = (parseInt(year) < 50 ? 2000 : 1900) + parseInt(year);
+                    }
+                } else {
+                    // Format 2: MM-DD-YYYY or MM-DD-YY
+                    dateCheckMatch = dateTimeStr.match(/(\d{1,2})-(\d{1,2})-(\d{2,4})/);
+                    if (dateCheckMatch) {
+                        month = parseInt(dateCheckMatch[1]);
+                        day = dateCheckMatch[2];
+                        year = dateCheckMatch[3];
+                        // Convert 2-digit year to 4-digit
+                        if (year.length === 2) {
+                            year = (parseInt(year) < 50 ? 2000 : 1900) + parseInt(year);
+                        }
+                    } else {
+                        // Format 3: YYYY-MM-DD
+                        dateCheckMatch = dateTimeStr.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
+                        if (dateCheckMatch) {
+                            year = dateCheckMatch[1];
+                            month = parseInt(dateCheckMatch[2]);
+                            day = dateCheckMatch[3];
+                        } else {
+                            // Format 4: Month abbreviation + Day (e.g., Jan 15)
+                            dateCheckMatch = dateTimeStr.match(/(January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)\s+(\d{1,2})/i);
+                            if (dateCheckMatch) {
+                                const monthStr = dateCheckMatch[1].toLowerCase();
+                                day = dateCheckMatch[2];
+                                year = new Date().getFullYear();
+                                month = monthStr.length <= 3 ? 
+                                    (Object.keys(monthNames).indexOf(monthStr) + 1) :
+                                    (monthNamesList.indexOf(monthNames[monthStr] || monthStr.charAt(0).toUpperCase() + monthStr.slice(1)) + 1);
+                            }
+                        }
+                    }
+                }
+
+                // Set the date fields if we found a valid date
+                if (day && month && year) {
+                    const fullMonth = monthNamesList[month - 1];
+                    const dateValue = fullMonth + ' ' + day + ', ' + year;
+                    // Use Flatpickr API if available, otherwise set value directly
+                    if (execDatePicker) {
+                        execDatePicker.setDate(dateValue, true);
+                    } else {
+                        document.getElementById('execDate').value = dateValue;
+                    }
+
+                    // Calculate day of week
+                    const dateObj = new Date(year, month - 1, parseInt(day));
+                    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                    document.getElementById('dayOfWeek').value = days[dateObj.getDay()];
+
+                    // Use unified time parser
+                    const timeParsed = parseTimeString(dateTimeStr);
+                    if (timeParsed && timeParsed.hours !== null) {
+                        const shortYear = year.toString().slice(-2);
+                        const monthPad = month.toString().padStart(2, '0');
+                        const dayPad = day.toString().padStart(2, '0');
+                        
+                        // Convert to 24-hour format
+                        let hours24 = timeParsed.hours;
+                        if (timeParsed.ampm) {
+                            if (timeParsed.ampm === 'PM' && timeParsed.hours !== 12) hours24 = timeParsed.hours + 12;
+                            if (timeParsed.ampm === 'AM' && timeParsed.hours === 12) hours24 = 0;
+                        }
+                        
+                        const province = extractProvinceFromAddress(woData.address);
+                        const isDST = isDaylightSavingTime(new Date(year, month - 1, parseInt(day)));
+                        const tzAbbr = province ? getTimezoneAbbr(province) : 'ET';
+                        currentTimezone = tzAbbr; // Store for time pickers
+                        document.getElementById('eodTimezone').value = tzAbbr;
+                        document.getElementById('arrivalTimezone').value = tzAbbr;
+
+                        // Format required datetime
+                        woData.requiredDateTime = `${monthPad}/${dayPad}/${shortYear} - ${hours24.toString().padStart(2, '0')}:${timeParsed.minutes.toString().padStart(2, '0')} ${tzAbbr}`;
+
+                        // Calculate arrival time (15 minutes before EOD)
+                        let arrivalHours = hours24;
+                        let arrivalMinutes = timeParsed.minutes - 15;
+                        if (arrivalMinutes < 0) {
+                            arrivalMinutes += 60;
+                            arrivalHours -= 1;
+                        }
+                        if (arrivalHours < 0) {
+                            arrivalHours += 24;
+                        }
+
+                        // Set arrival time picker
+                        const arrivalTimeOnly = `${arrivalHours.toString().padStart(2, '0')}:${arrivalMinutes.toString().padStart(2, '0')}`;
+                        if (arrivalTimePicker) {
+                            arrivalTimePicker.setDate(arrivalTimeOnly, false);
+                        }
+                        document.getElementById('arrivalTimeInput').value = arrivalTimeOnly;
+                        updateArrivalTimeValue();
+                    }
+                }
+            }
+
+            return woData.woNumber || woData.wotNumber || woData.incNumber;
+        }
+
+
+        function parseWorkOrder() {
+            const text = document.getElementById('pasteInput').value;
+
+            if (!text.trim()) {
+                alert('Please paste work order text first.');
+                return;
+            }
+
+            // Auto-detect WO number and fetch from ServiceNow if found
+            const woMatch = text.match(/\b(WO\d{6,})\b/i);
+            if (woMatch) {
+                const detectedWO = woMatch[1].toUpperCase();
+                showFetchStatus(`WO# detected: ${detectedWO} - Fetching from ServiceNow...`, 'loading');
+
+                // Fetch from ServiceNow automatically
+                fetchFromServiceNowAuto(detectedWO);
+                return; // Stop here - fetchFromServiceNowAuto will handle everything
+            }
+
+            // No WO# detected - use manual parsing
+            runManualParsing();
+        }
+
+
+        // NOTE: Old parseWorkOrder code removed - now handled by runManualParsing()
+
+
+        // Fetch contact info from API based on arrival time and date
+        async function fetchContactFromAPI(arrivalTime, execDate) {
+            try {
+                // Convert execDate format "January 15, 2026" to "2026-01-15"
+                const dateMatch = execDate.match(/([A-Za-z]+)\s+(\d+),\s+(\d{4})/);
+                if (!dateMatch) return null;
+
+                const monthNames = {
+                    'january': '01', 'february': '02', 'march': '03', 'april': '04',
+                    'may': '05', 'june': '06', 'july': '07', 'august': '08',
+                    'september': '09', 'october': '10', 'november': '11', 'december': '12'
+                };
+                
+                const month = monthNames[dateMatch[1].toLowerCase()];
+                const day = dateMatch[2].padStart(2, '0');
+                const year = dateMatch[3];
+                const apiDate = `${year}-${month}-${day}`;
+
+                // Convert arrival time to 24-hour format "HH:MM" for API
+                // Handles both: "08:45 PM EST" (12-hour) and "20:45 EST" (24-hour)
+                let apiTime = '';
+                
+                // Try 12-hour format first (HH:MM AM/PM)
+                let timeMatch = arrivalTime.match(/(\d{1,2})(?::(\d{2}))?\s*(AM|PM)/i);
+                if (timeMatch) {
+                    let hours = parseInt(timeMatch[1]);
+                    const mins = timeMatch[2] ? timeMatch[2] : '00';
+                    const period = timeMatch[3].toUpperCase();
+
+                    // Convert to 24-hour format
+                    if (period === 'PM' && hours !== 12) hours += 12;
+                    if (period === 'AM' && hours === 12) hours = 0;
+
+                    apiTime = `${hours.toString().padStart(2, '0')}:${mins}`;
+                } else {
+                    // Try 24-hour format (HH:MM with optional timezone)
+                    timeMatch = arrivalTime.match(/(\d{1,2})(?::(\d{2}))?/);
+                    if (timeMatch) {
+                        const hours = timeMatch[1].padStart(2, '0');
+                        const mins = timeMatch[2] ? timeMatch[2] : '00';
+                        apiTime = `${hours}:${mins}`;
+                    } else {
+                        return null;
+                    }
+                }
+
+
+                // Call API with CORS proxy fallbacks
+                const apiUrl = `https://sippbx01.itwizard.ca/custom_apps/infonode.php?date=${apiDate}&time=${apiTime}`;
+
+                // List of CORS proxies to try (in order)
+                const corsProxies = [
+                    { name: 'allorigins', url: `https://api.allorigins.win/get?url=${encodeURIComponent(apiUrl)}`, parseResponse: (data) => JSON.parse(data.contents) },
+                    { name: 'corsproxy.io', url: `https://corsproxy.io/?${encodeURIComponent(apiUrl)}`, parseResponse: (data) => data },
+                    { name: 'cors.sh', url: `https://cors.sh/${apiUrl}`, parseResponse: (data) => data }
+                ];
+
+                // Try each proxy until one works
+                for (const proxy of corsProxies) {
+                    try {
+                        const response = await fetch(proxy.url);
+
+                        if (!response.ok) continue;
+
+                        const proxyData = await response.json();
+                        const data = proxy.parseResponse(proxyData);
+
+                        if (data && data.assigned_person) {
+                            return {
+                                name: data.assigned_person.full_name || '',
+                                phone: data.assigned_person.phone_number || ''
+                            };
+                        }
+                    } catch (proxyError) {
+                        continue;
+                    }
+                }
+
+                // All proxies failed
+                return null;
+            } catch (error) {
+                return null;
+            }
+        }
+
+        function calculateEOD(timeStr) {
+            // Add 15 minutes to arrival time for EOD
+            const match = timeStr.match(/(\d{1,2})(?::(\d{2}))?\s*(?:am|pm)?/i);
+            if (match) {
+                let hours = parseInt(match[1]);
+                let mins = (match[2] ? parseInt(match[2]) : 0) + 15;
+                const ampm = match[3] ? match[3].toUpperCase() : 'PM';
+
+                if (mins >= 60) {
+                    mins -= 60;
+                    hours += 1;
+                }
+                if (hours > 12) hours = hours - 12;
+                if (hours === 0) hours = 12;
+
+                return hours + ':' + mins.toString().padStart(2, '0') + ' ' + ampm + ' ET';
+            }
+            return '9:00 PM ET';
+        }
+
+        function extractField(text, pattern) {
+            const match = text.match(pattern);
+            return match ? (match[1] || match[0]).trim() : null;
+        }
+
+        function generateOutputs() {
+            // Validate fields and show warning (but continue generating)
+            const validation = validateFields();
+            if (!validation.isValid) {
+                // Scroll to warning banner to make sure user sees it
+                document.getElementById('validationWarning').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+
+            const partDesc = document.getElementById('partDesc').value || '[PART DESCRIPTION]';
+            const partCode = document.getElementById('partCode').value || '[PART CODE]';
+            const diskSlot = document.getElementById('diskSlot').value || '';
+            const contactName = document.getElementById('contactName').value || '[CONTACT NAME]';
+            const contactPhone = document.getElementById('contactPhone').value || '[PHONE]';
+            const dayOfWeek = document.getElementById('dayOfWeek').value;
+            const execDate = document.getElementById('execDate').value || '[DATE]';
+            const arrivalTime = document.getElementById('arrivalTime').value || '[TIME]';
+            const eodTime = document.getElementById('eodTime').value || '[EOD TIME]';
+
+            const fullPart = partDesc + ' - ' + partCode;
+            const locationCode = woData.locationCode || '[LOCATION]';
+            const shortDesc = document.getElementById('shortDesc').value || '[DESCRIPTION]';
+            
+            // Check if this is a hard drive replacement (contains keywords like "disk", "drive", "storage")
+            const isHardDrive = partDesc.toLowerCase().includes('disk') || 
+                               partDesc.toLowerCase().includes('drive') || 
+                               partDesc.toLowerCase().includes('storage') ||
+                               partCode.toLowerCase().includes('-hd-');
+            
+            // Check if the email mentions "predicted to fail"
+            const pasteInput = document.getElementById('pasteInput').value;
+            const isPredictedToFail = pasteInput.toLowerCase().includes('predicted to fail');
+            
+            // Build the slot line only if it's a hard drive AND slot is specified
+            let slotLine = '';
+            if (isHardDrive && diskSlot) {
+                if (isPredictedToFail) {
+                    slotLine = `Hard disk is predicted to fail in slot ${diskSlot} and it needs to be replaced, in Dell VRTX server at this location.`;
+                } else {
+                    slotLine = `Hard disk in slot ${diskSlot} needs to be replaced, in Dell VRTX server at this location.`;
+                }
+            } else {
+                slotLine = `${partDesc} needs to be replaced in Dell VRTX server at this location.`;
+            }
+            
+            // Helper function to add ordinal suffix (1st, 2nd, 3rd, 4th, etc.)
+            function getOrdinalSuffix(day) {
+                const j = day % 10;
+                const k = day % 100;
+                if (j === 1 && k !== 11) return 'st';
+                if (j === 2 && k !== 12) return 'nd';
+                if (j === 3 && k !== 13) return 'rd';
+                return 'th';
+            }
+            
+            // Extract day from execDate (e.g., "January 15, 2026" -> 15)
+            const dayMatch = execDate.match(/(\d+)/);
+            const dayNumber = dayMatch ? dayMatch[1] : '';
+            const dayOrdinal = dayNumber ? dayNumber + getOrdinalSuffix(parseInt(dayNumber)) : '';
+            
+            // Format date as "Thursday, January 15th"
+            const formattedDate = `${dayOfWeek}, ${execDate.replace(/\d+/, dayOrdinal)}`;
+            
+            // Build the dispatch email body with proper formatting
+            let dispatchBody = `Hi Dispatch team,
+
+`;
+            
+            // For hard drives, check if predicted to fail or just needs replacement
+            if (isHardDrive && diskSlot) {
+                if (isPredictedToFail) {
+                    dispatchBody += `Hard disk is predicted to fail in slot ${diskSlot} and it needs to be replaced, in Dell VRTX server at this location.`;
+                } else {
+                    dispatchBody += `Hard disk in slot ${diskSlot} needs to be replaced, in Dell VRTX server at this location.`;
+                }
+            } else {
+                dispatchBody += `${partDesc} needs to be replaced in Dell VRTX server at this location.`;
+            }
+            
+            dispatchBody += `
+
+• Our tech needs to bring ${fullPart}.
+
+• Our tech needs to be onsite, ${formattedDate}, at local store ${arrivalTime}, task to be performed after EOD time (${eodTime}) as per CTC team.
+
+• Once onsite tech reaches the site, please call ${contactName} ${contactPhone} first. Do not perform any work without contacting ${contactName}.
+
+
+Please note the following internal work note and Performed Work Note (Customer visible) has been added to the ticket:
+
+PART INFORMATION
+Dell Part Description: ${fullPart}
+Special instructions for BFG Technician: Once onsite tech reaches the site, please call ${contactName} ${contactPhone} first . Do not perform any work without contacting ${contactName}.
+
+Thank you,`;
+            
+            // OUTPUT 1 - DO FIRST IN SERVICENOW (URGENT - SLA)
+            const output1 = `PART INFORMATION
+
+Dell Part Description: ${fullPart}
+Special instructions for BFG Technician: Once onsite tech reaches the site, please call ${contactName} ${contactPhone} first . Do not perform any work without contacting ${contactName}.`;
+            
+            // OUTPUT 2 - Dispatch Email
+            const output2 = `TO: BFG Dispatch Center <dispatcher@bfg.ca>
+Cc: 'CTC Server Tickets' <CTCServerTickets@bfg.ca>; Allan Harriott <allan.harriott@bfg.ca>; Amit Sooknanan <amit.sooknanan@bfg.ca>; Ana Agapi <Ana.Agapi@bfg.ca>; Gee Lee <Gee.Lee@bfg.ca>
+
+
+${dispatchBody}`;
+
+            // OUTPUT 3 - UPDATE SERVICENOW WITH DISPATCH EMAIL internal notes
+            const output3 = `${dispatchBody}`;
+
+            // OUTPUT 4 - Ask for Tech Info
+            const output4 = `Hi Dispatch team,
+
+Can you please provide contact number for on-site tech, and ensure that once onsite tech reaches the site, ${formattedDate}, at local store time ${arrivalTime}, to please contact ${contactName} ${contactPhone} first.
+
+Thank you`;
+
+            // OUTPUT 5 - BFG Tracker Ticket Summary
+            // Determine replacement type for final note
+            const replacementType = isHardDrive ? 'hard disk' : partDesc.split(' ')[0].toLowerCase();
+            
+            const output5 = `BFG Tracker Ticket Subject Line: ${woData.wotNumber} - ${woData.woNumber} - ${woData.locationCode} // ${woData.incNumber} - ${shortDesc}
+
+---
+
+1. Confirmed description of ticket includes store information, and store and CT support contact information.
+
+2. Added the following internal work note and Performed Work Note (Customer visible) has been added to the ticket:
+
+PART INFORMATION
+Dell Part Description: ${fullPart}
+Special instructions for BFG Technician: Once onsite tech reaches the site, please call ${contactName} ${contactPhone} first. Do not perform any work without contacting ${contactName}.
+
+3. Added the following internal work note to ticket:
+${shortDesc}
+Our tech needs to bring ${fullPart}
+Our tech needs to be onsite ${execDate} at store local time of ${arrivalTime} after EOD.
+Once onsite tech reaches the site, please call ${contactName} ${contactPhone} first. Do not perform any work without contacting ${contactName}.
+
+4. Sent the following email to Dispatch team:
+Hi Dispatch Team,
+
+${shortDesc}
+Our tech needs to bring ${fullPart}
+Our tech needs to be onsite ${execDate} at store local time of ${arrivalTime} after EOD.
+Once onsite tech reaches the site, please call ${contactName} ${contactPhone} first. Do not perform any work without contacting ${contactName}.
+
+Please note the following internal work note and Performed Work Note (Customer visible) has been added to the ticket:
+
+PART INFORMATION
+Dell Part Description: ${fullPart}
+Special instructions for BFG Technician: Once onsite tech reaches the site, please call ${contactName} ${contactPhone} first. Do not perform any work without contacting ${contactName}.
+
+5. Added the following Performed Work Note (Customer visible) to the ticket
+We will visit the site to replace ${partDesc} on ${formattedDate}, at local store ${arrivalTime}.`;
+
+            // OUTPUT 6 - Update ServiceNow with Tech Store Visit (Customer Visible Only)
+            const output6 = `We will visit the site to replace ${partDesc} on ${formattedDate}, at local store ${arrivalTime}.`;
+
+            // Set outputs
+            document.getElementById('output1').textContent = output1;
+            document.getElementById('output2').textContent = output2;
+            document.getElementById('output3').textContent = output3;
+            document.getElementById('output4').textContent = output4;
+            document.getElementById('output5').textContent = output5;
+            document.getElementById('output6').textContent = output6;
+        }
+
+        function copyOutput(outputId) {
+            const text = document.getElementById(outputId).textContent;
+
+            navigator.clipboard.writeText(text).then(() => {
+                showNotification();
+            }).catch(() => {
+                const textArea = document.createElement('textarea');
+                textArea.value = text;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                showNotification();
+            });
+        }
+
+        function exportToCSV() {
+            // Collect all data from form fields
+            const partDesc = document.getElementById('partDesc').value || '';
+            const partCode = document.getElementById('partCode').value || '';
+            const contactName = document.getElementById('contactName').value || '';
+
+            // Get data from extracted info (PARSE WORK ORDER results)
+            const wotNumber = document.getElementById('dispWOT').textContent;
+            const woNumber = document.getElementById('dispWO').textContent;
+            const incNumber = document.getElementById('dispINC').textContent;
+            const shortDesc = document.getElementById('shortDesc').value || document.getElementById('dispDesc').textContent;
+            
+            // ProjeQtor CSV Format (comma-separated):
+            // name,ticket type,project,external reference,issuer,requestor,description,status,resolution,responsible,store number,Part 1 Number
+            
+            // Helper function to clean field: remove commas, replace with space if needed
+            const cleanField = (text) => {
+                if (!text) return '';
+                return text.replace(/,/g, ' ').replace(/\s+/g, ' ').trim();
+            };
+            
+            // Helper function to get first part before comma
+            const getFirstPart = (text) => {
+                if (!text) return '';
+                return text.split(',')[0].trim();
+            };
+            
+            // 1. NAME: WOT# - WO# CTR#/INC# {Part Description (first part only)}
+            const locationCode = woData.locationCode || 'CTR0000';
+            const partDescFirstPart = getFirstPart(partDesc); // Take only first part before comma
+            const ticketName = cleanField(`${wotNumber} - ${woNumber} ${locationCode}/${incNumber} ${partDescFirstPart}`);
+            
+            // 2. TICKET TYPE: Auto-detect from part description
+            let ticketType = 'Hard Drive';
+            const searchText = (partDesc + ' ' + shortDesc).toLowerCase();
+            
+            if (searchText.includes('cmos') && searchText.includes('battery')) {
+                ticketType = 'CMOS Battery';
+            } else if (searchText.includes('perc') && searchText.includes('battery')) {
+                ticketType = 'PERC Battery';
+            } else if (searchText.includes('perc') && (searchText.includes('controller') || searchText.includes('raid'))) {
+                ticketType = 'PERC Controller';
+            } else if (searchText.includes('backplane')) {
+                ticketType = 'Backplane';
+            } else if (searchText.includes('blower') || searchText.includes('fan')) {
+                ticketType = 'Blower';
+            } else if (searchText.includes('chassis') && searchText.includes('management') && searchText.includes('lcd')) {
+                ticketType = 'Chassis Management Controller LCD panel';
+            } else if (searchText.includes('chassis') && searchText.includes('management')) {
+                ticketType = 'Chassis Management Controller';
+            } else if (searchText.includes('chassis')) {
+                ticketType = 'Complete Chassis';
+            } else if (searchText.includes('motherboard') || searchText.includes('system board')) {
+                ticketType = 'Motherboard';
+            } else if (searchText.includes('hard disk') || searchText.includes('hard drive') || searchText.includes('ssd')) {
+                ticketType = 'Hard Drive';
+            } else if (searchText.includes('memory') || searchText.includes('ddr') || searchText.includes('rdimm')) {
+                ticketType = 'Memory';
+            } else if (searchText.includes('sd module') || searchText.includes('sd card')) {
+                ticketType = 'SD Module';
+            } else if (searchText.includes('io module')) {
+                ticketType = 'IO module';
+            } else if (searchText.includes('m640') || searchText.includes('node')) {
+                ticketType = 'M640 Node';
+            } else if (searchText.includes('power supply') || searchText.includes('psu')) {
+                ticketType = 'Power Supply';
+            }
+            
+            // 3. PROJECT: Fixed value
+            const project = 'CTC Servers Support';
+            
+            // 4. EXTERNAL REFERENCE: INC number only
+            const externalRef = incNumber;
+            
+            // 5. ISSUER: From parsed email TO field (clean commas)
+            const issuer = cleanField(woData.issuer || contactName || '');
+            
+            // 6. REQUESTOR: Fixed value (clean commas)
+            const requestor = cleanField('Mihai Posea');
+            
+            // 7. DESCRIPTION: Only the short description (clean commas)
+            const description = cleanField(shortDesc || '');
+            
+            // 8. STATUS: Set to "recorded"
+            const status = 'recorded';
+            
+            // 9. RESOLUTION: Empty
+            const resolution = '';
+            
+            // 10. RESPONSIBLE: Empty
+            const responsible = '';
+            
+            // 11. STORE NUMBER: Use CTR code from parsed location
+            const storeNumber = cleanField(locationCode || '');
+            
+            // 12. PART 1 NUMBER: Use Part Code from form (clean commas)
+            const partNumber = cleanField(partCode || '');
+            
+            // Build CSV line (comma-separated format) - NO escaping needed since we removed commas
+            const csvLine = [
+                ticketName,
+                ticketType,
+                project,
+                externalRef,
+                issuer,
+                requestor,
+                description,
+                status,
+                resolution,
+                responsible,
+                storeNumber,
+                partNumber
+            ].join(',');
+
+            // Add header row (comma-separated)
+            const csvHeader = 'name,ticket type,project,external reference,issuer,requestor,description,status,resolution,responsible,store number,Part 1 Number';
+            const csvContent = csvHeader + '\n' + csvLine;
+
+            // Create blob and download
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            const fileName = `ProjeQtor_${woNumber || 'ticket'}_${new Date().toISOString().split('T')[0]}.csv`;
+            
+            link.setAttribute('href', url);
+            link.setAttribute('download', fileName);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            // Show notification
+            const notification = document.getElementById('copyNotification');
+            const originalText = notification.textContent;
+            notification.textContent = `CSV exported as ${fileName}`;
+            notification.style.display = 'block';
+            setTimeout(() => {
+                notification.textContent = originalText;
+                notification.style.display = 'none';
+            }, 2000);
+        }
+
+        function showNotification() {
+            const notification = document.getElementById('copyNotification');
+            notification.style.display = 'block';
+            setTimeout(() => {
+                notification.style.display = 'none';
+            }, 1500);
+        }
+
+        function clearAll() {
+            // Clear fetch status
+            document.getElementById('fetchStatus').className = 'fetch-status';
+            document.getElementById('fetchStatus').textContent = '';
+
+            document.getElementById('pasteInput').value = '';
+            document.getElementById('partDesc').value = '';
+            document.getElementById('partCode').value = '';
+            document.getElementById('diskSlot').value = '';
+            document.getElementById('contactName').value = '';
+            document.getElementById('contactPhone').value = '';
+            document.getElementById('shortDesc').value = '';
+            // Clear Arrival time picker and timezone dropdown
+            if (arrivalTimePicker) {
+                arrivalTimePicker.clear();
+            }
+            document.getElementById('arrivalTimeInput').value = '';
+            document.getElementById('arrivalTimezone').value = 'ET';
+            document.getElementById('arrivalTime').value = '';
+            document.getElementById('arrivalTimeEST').value = '';
+            // Clear EOD time picker and timezone dropdown
+            if (eodTimePicker) {
+                eodTimePicker.clear();
+            }
+            document.getElementById('eodTimeInput').value = '';
+            document.getElementById('eodTimezone').value = 'ET';
+            document.getElementById('eodTime').value = '';
+            currentTimezone = 'ET'; // Reset timezone to default
+            // Clear Flatpickr date picker
+            if (execDatePicker) {
+                execDatePicker.clear();
+            } else {
+                document.getElementById('execDate').value = '';
+            }
+
+            document.getElementById('dispWOT').textContent = '-';
+            document.getElementById('dispWO').textContent = '-';
+            document.getElementById('dispINC').textContent = '-';
+            document.getElementById('dispStoreNumber').textContent = '-';
+            document.getElementById('dispLoc').textContent = '-';
+            document.getElementById('dispProvince').textContent = '-';
+            document.getElementById('dispDesc').textContent = '-';
+            document.getElementById('dispDateTime').textContent = '-';
+            document.getElementById('dispContact').textContent = '-';
+
+            document.getElementById('output1').textContent = 'Generate outputs to see content...';
+            document.getElementById('output2').textContent = 'Generate outputs to see content...';
+            document.getElementById('output3').textContent = 'Generate outputs to see content...';
+            document.getElementById('output4').textContent = 'Generate outputs to see content...';
+            document.getElementById('output5').textContent = 'Generate outputs to see content...';
+            document.getElementById('output6').textContent = 'Generate outputs to see content...';
+
+            woData = { woNumber: '', wotNumber: '', incNumber: '', location: '', locationCode: '', shortDesc: '', address: '', province: '', issuer: '', requestor: '', cleanLocation: '' };
+
+            // Reset validation states
+            document.getElementById('validationWarning').style.display = 'none';
+            const inputFields = ['partCode', 'partDesc', 'contactName', 'contactPhone', 'shortDesc', 'execDate', 'arrivalTimeInput', 'eodTimeInput'];
+            inputFields.forEach(id => {
+                const el = document.getElementById(id);
+                el.classList.remove('input-missing', 'input-valid');
+            });
+            const dispFields = ['dispWOT', 'dispWO', 'dispINC', 'dispStoreNumber', 'dispProvince', 'dispDesc', 'dispDateTime', 'dispContact'];
+            dispFields.forEach(id => {
+                document.getElementById(id).className = '';
+            });
+        }
+
+        // Contact name to phone number mapping
+        const contactPhoneMap = {
+            'Haseeb Rehman': '+16476578108',
+            'Mihai Posea': '+14168071245',
+            'Alex Grenier': '+12893141579',
+            'Horia Telehoiu': '+14165707271',
+            'Icy Ma': '+14167972050',
+            'Mike McMullen': '+15194741631',
+            'Maitreyi Tandel': '+14372423320',
+            'Jaime Duran': '+19052592083',
+            'Jorge Soares': '+14168360713'
+        };
+
+        // Set default day on load
+        window.onload = function() {
+            const today = new Date();
+            const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            document.getElementById('dayOfWeek').value = days[today.getDay()];
+            initializePartsDatabase();
+
+            // Auto-fill phone number when contact name is selected from list
+            document.getElementById('contactName').addEventListener('input', function() {
+                const selectedName = this.value;
+                if (contactPhoneMap[selectedName]) {
+                    document.getElementById('contactPhone').value = contactPhoneMap[selectedName];
+                }
+            });
+
+            // Initialize Flatpickr date picker
+            execDatePicker = flatpickr("#execDate", {
+                dateFormat: "F j, Y",      // Output: "January 15, 2026"
+                allowInput: true,           // Allow manual typing
+                altInput: false,
+                onClose: function(selectedDates, dateStr, instance) {
+                    // Update day of week when date is selected
+                    if (selectedDates.length > 0) {
+                        const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                        document.getElementById('dayOfWeek').value = days[selectedDates[0].getDay()];
+                    }
+                }
+            });
+
+            // Initialize Arrival Time picker (time only)
+            arrivalTimePicker = flatpickr("#arrivalTimeInput", {
+                enableTime: true,
+                noCalendar: true,           // Time only, no date
+                dateFormat: "H:i",          // 24-hour format: "20:45"
+                time_24hr: true,
+                allowInput: true,           // Allow manual typing
+                onClose: function(selectedDates, dateStr, instance) {
+                    updateArrivalTimeValue();
+                }
+            });
+
+            // Update hidden arrivalTime when timezone dropdown changes
+            document.getElementById('arrivalTimezone').addEventListener('change', updateArrivalTimeValue);
+
+            // Also update on manual input blur
+            document.getElementById('arrivalTimeInput').addEventListener('blur', updateArrivalTimeValue);
+
+            // Initialize EOD Time picker (time only)
+            eodTimePicker = flatpickr("#eodTimeInput", {
+                enableTime: true,
+                noCalendar: true,           // Time only, no date
+                dateFormat: "H:i",          // 24-hour format: "21:00"
+                time_24hr: true,
+                allowInput: true,           // Allow manual typing
+                onClose: function(selectedDates, dateStr, instance) {
+                    updateEodTimeValue();
+                }
+            });
+
+            // Update hidden eodTime when timezone dropdown changes
+            document.getElementById('eodTimezone').addEventListener('change', updateEodTimeValue);
+
+            // Also update on manual input blur
+            document.getElementById('eodTimeInput').addEventListener('blur', updateEodTimeValue);
+        };
+
+        // Function to combine time + timezone into hidden eodTime field
+        function updateEodTimeValue() {
+            const timeValue = document.getElementById('eodTimeInput').value;
+            const tzValue = document.getElementById('eodTimezone').value;
+            if (timeValue) {
+                document.getElementById('eodTime').value = timeValue + ' ' + tzValue;
+            } else {
+                document.getElementById('eodTime').value = '';
+            }
+        }
+
+        // Function to combine time + timezone into hidden arrivalTime field
+        function updateArrivalTimeValue() {
+            const timeValue = document.getElementById('arrivalTimeInput').value;
+            const tzValue = document.getElementById('arrivalTimezone').value;
+            if (timeValue) {
+                document.getElementById('arrivalTime').value = timeValue + ' ' + tzValue;
+                // Convert to ET and update the ET field
+                const estTime = convertToEST(timeValue, tzValue);
+                document.getElementById('arrivalTimeEST').value = estTime;
+            } else {
+                document.getElementById('arrivalTime').value = '';
+                document.getElementById('arrivalTimeEST').value = '';
+            }
+        }
+
+        // Convert time from any timezone to ET (Eastern Time)
+        function convertToEST(timeStr, fromTimezone) {
+            // Parse time (HH:MM format)
+            const timeMatch = timeStr.match(/(\d{1,2}):(\d{2})/);
+            if (!timeMatch) return '';
+
+            let hours = parseInt(timeMatch[1]);
+            let minutes = parseInt(timeMatch[2]);
+
+            // Timezone offsets relative to Eastern Time (positive = ahead of ET, negative = behind ET)
+            // ET (Eastern) is the baseline (0)
+            // Includes both new simplified codes and legacy codes for input parsing
+            const tzOffsets = {
+                // New simplified codes (used by dropdown)
+                'ET': 0,     // Eastern Time (Ontario, Quebec)
+                'CT': -1,    // Central Time (Manitoba, Saskatchewan)
+                'MT': -2,    // Mountain Time (Alberta)
+                'PT': -3,    // Pacific Time (British Columbia)
+                'AT': 1,     // Atlantic Time (Nova Scotia, New Brunswick, PEI)
+                'NT': 1.5,   // Newfoundland Time (Newfoundland and Labrador)
+                // Legacy codes (for parsing input text)
+                'EST': 0, 'EDT': 0,
+                'CST': -1, 'CDT': -1,
+                'MST': -2, 'MDT': -2,
+                'PST': -3, 'PDT': -3,
+                'AST': 1, 'ADT': 1,
+                'NST': 1.5, 'NDT': 1.5
+            };
+
+            const offset = tzOffsets[fromTimezone] || 0;
+
+            // Handle the offset in two parts: integer hours and half-hour (for Newfoundland)
+            const hourOffset = Math.trunc(offset);  // Integer part only (-1, 0, 1, etc.)
+            const hasHalfHour = Math.abs(offset) % 1 !== 0;  // True for NT/Newfoundland (1.5)
+
+            // Subtract the integer hour portion
+            hours = hours - hourOffset;
+
+            // Handle the 30-minute offset if applicable (Newfoundland)
+            if (hasHalfHour) {
+                if (offset > 0) {
+                    minutes -= 30;
+                } else {
+                    minutes += 30;
+                }
+                // Handle minute underflow/overflow
+                if (minutes >= 60) {
+                    minutes -= 60;
+                    hours += 1;
+                } else if (minutes < 0) {
+                    minutes += 60;
+                    hours -= 1;
+                }
+            }
+
+            // Handle hour overflow/underflow after all adjustments
+            if (hours >= 24) {
+                hours -= 24;
+            } else if (hours < 0) {
+                hours += 24;
+            }
+
+            return hours.toString().padStart(2, '0') + ':' + minutes.toString().padStart(2, '0') + ' ET';
+        }
+    </script>
+</body>
+</html>
+
+
