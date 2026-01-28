@@ -1,9 +1,8 @@
 # ProjeQtOr API Integration Notes
 
 ## Instance Details
-- **Base URL:** `https://portal.bfgintegration.ca/schedule2k19/`
-- **Version:** 12.3.2
-- **API Endpoint:** `https://portal.bfgintegration.ca/schedule2k19/api/Ticket`
+- **Base URL:** `https://portal.bfgintegration.ca/schedule2k23/`
+- **API Endpoint:** `https://portal.bfgintegration.ca/schedule2k23/api/Ticket`
 - **API Status:** Enabled (returns 401 Unauthorized - needs credentials)
 
 ## API Overview
@@ -43,12 +42,12 @@ PUT  /api/Ticket                - Update ticket (encrypted JSON body)
 
 2. **Server-side .htpasswd Setup**
    ```bash
-   htpasswd -c /path/to/schedule2k19/api/.htpasswd username
+   htpasswd -c /path/to/schedule2k23/api/.htpasswd username
    ```
 
 3. **Configure .htaccess** (in /api/ folder)
    ```
-   AuthUserFile "/full/path/to/schedule2k19/api/.htpasswd"
+   AuthUserFile "/full/path/to/schedule2k23/api/.htpasswd"
    AuthType Basic
    AuthName "ProjeQtOr API"
    Require valid-user
