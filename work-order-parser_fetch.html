@@ -922,9 +922,24 @@ The system will auto-detect WO numbers and fetch data from ServiceNow automatica
                 }
             }
 
-            // Format 3: Look for Canadian address pattern anywhere in text
+            // Format 3: Extract address lines following Location code (email notification format)
             if (!woData.address) {
-                const canadianAddressMatch = text.match(/(\d+\s+[\w\s]+(?:Rd|Road|St|Street|Ave|Avenue|Blvd|Boulevard|Dr|Drive|Way|Cr|Cres|Crescent)\.?[\s,]+[\w\s]+,?\s*(?:ON|QC|BC|AB|MB|SK|NS|NB|PE|NL|NT|YT|NU)[\s,]*[A-Z]\d[A-Z]\s*\d[A-Z]\d)/i);
+                const locBlockMatch = text.match(/Location:\s*(?:CTR|FGL)\d+\s*\n([\s\S]*?)(?=\n\s*Short Description|$)/i);
+                if (locBlockMatch) {
+                    const addressLines = locBlockMatch[1]
+                        .split('\n')
+                        .map(l => l.trim())
+                        .filter(l => l && l.length > 0 && !l.match(/^(Customer|BFG|Work Order|Priority|Assignment|Service|Service Time|Location|Short)/i))
+                        .filter(l => l !== ',');
+                    if (addressLines.length > 0) {
+                        woData.address = addressLines.join(', ').replace(/,\s*,/g, ',').replace(/,\s*$/, '').trim();
+                    }
+                }
+            }
+
+            // Format 4: Look for Canadian address pattern anywhere in text
+            if (!woData.address) {
+                const canadianAddressMatch = text.match(/(\d+[,.]?\s+[\w\s.'-]+(?:Rd|Road|St|Street|Ave|Avenue|Blvd|Boulevard|Boul|Dr|Drive|Way|Cr|Cres|Crescent|Rue|Ch|Chemin|Rang|Montée|Côte)\.?[\s,]+[\w\s.'-]+,?\s*(?:ON|QC|BC|AB|MB|SK|NS|NB|PE|NL|NT|YT|NU)[\s,]*[A-Z]\d[A-Z]\s*\d[A-Z]\d)/i);
                 if (canadianAddressMatch) {
                     woData.address = canadianAddressMatch[1].trim();
                 }
@@ -933,7 +948,7 @@ The system will auto-detect WO numbers and fetch data from ServiceNow automatica
             // Update location display with address if found
             if (woData.address) {
                 const locDisplay = document.getElementById('dispLoc');
-                const fullLocation = woData.locationCode ? `Canadian Tire ${woData.locationCode} - ${woData.address}` : `Canadian Tire - ${woData.address}`;
+                const fullLocation = 'Canadian Tire - ' + woData.address;
                 const mapsUrl = `https://www.google.com/maps/search/${encodeURIComponent('Canadian Tire ' + woData.address)}`;
                 locDisplay.innerHTML = `<a href="${mapsUrl}" target="_blank">${fullLocation}</a>`;
 
@@ -1146,7 +1161,7 @@ The system will auto-detect WO numbers and fetch data from ServiceNow automatica
             document.getElementById('dispDesc').textContent = wo.short_description || '-';
             document.getElementById('shortDesc').value = wo.short_description || '';
 
-            // Set location with Google Maps link
+            // Set location with Google Maps link (will be updated with address by extractAdditionalFromPastedText)
             const locDisplay = document.getElementById('dispLoc');
             if (locationDisplay) {
                 const mapsUrl = `https://www.google.com/maps/search/${encodeURIComponent('Canadian Tire ' + locationDisplay)}`;
