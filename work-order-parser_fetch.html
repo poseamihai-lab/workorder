@@ -924,7 +924,7 @@ The system will auto-detect WO numbers and fetch data from ServiceNow automatica
 
             // Format 3: Extract address lines following Location code (email notification format)
             if (!woData.address) {
-                const locBlockMatch = text.match(/Location:\s*(?:CTR|FGL)\d+\s*\n([\s\S]*?)(?=\n\s*Short Description|$)/i);
+                const locBlockMatch = text.match(/Location:\s*(?:CTR|FGL|PTY)\d+\s*\n([\s\S]*?)(?=\n\s*Short Description|$)/i);
                 if (locBlockMatch) {
                     const addressLines = locBlockMatch[1]
                         .split('\n')
@@ -1036,8 +1036,8 @@ The system will auto-detect WO numbers and fetch data from ServiceNow automatica
                 woData.wotNumber = extractField(text, /WOT\d+/i) || '';
                 woData.incNumber = extractField(text, /INC\d+/i) || '';
 
-                // Extract location code (CTR or FGL format)
-                woData.locationCode = extractField(text, /Location:\s*\n?\s*((?:CTR|FGL)\d+)/i) || '';
+                // Extract location code (CTR, FGL, or PTY format)
+                woData.locationCode = extractField(text, /Location:\s*\n?\s*((?:CTR|FGL|PTY)\d+)/i) || '';
 
                 // Extract full location/address
                 const streetMatch = text.match(/Location Street:\s*(.+?)(?=\n|$)/i);
@@ -1053,7 +1053,7 @@ The system will auto-detect WO numbers and fetch data from ServiceNow automatica
                     }
                     woData.address = addressParts.join(', ');
                 } else {
-                    const locMatch = text.match(/Location:\s+(?:CTR|FGL)\d+\s*\n([\s\S]*?)(?=\n\s*Short Description|$)/i);
+                    const locMatch = text.match(/Location:\s+(?:CTR|FGL|PTY)\d+\s*\n([\s\S]*?)(?=\n\s*Short Description|$)/i);
                     if (locMatch) {
                         const addressLines = locMatch[1]
                             .split('\n')
@@ -1130,7 +1130,7 @@ The system will auto-detect WO numbers and fetch data from ServiceNow automatica
 
             // Get location code
             const locationDisplay = getDisplayValue(wo.location) || '';
-            const storeNumMatch = locationDisplay.match(/CTR(\d+)/i) || locationDisplay.match(/FGL(\d+)/i);
+            const storeNumMatch = locationDisplay.match(/CTR(\d+)/i) || locationDisplay.match(/FGL(\d+)/i) || locationDisplay.match(/PTY(\d+)/i);
 
             // Populate woData object
             woData.woNumber = wo.number || '';
